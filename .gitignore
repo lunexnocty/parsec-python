@@ -161,7 +161,5 @@ cython_debug/
 
 # Visual Studio Code
 .vscode/
-
-examples/
-
-json_parser.py
+*.deprecated
+main.py

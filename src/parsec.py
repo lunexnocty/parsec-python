@@ -1,11 +1,10 @@
-from typing import NewType, Type, NamedTuple, Callable, Iterable, Any
+from typing import Type, NamedTuple, Callable, Iterable, Any
 from typing import override, cast, overload
-from types import NoneType
 from functools import reduce
 
-from utils import cons
+from src.utils import cons
 
-from typeclass import Monad, Alternative, Lazy
+from src.typeclass import Monad, Alternative, Lazy
 
 class Okay[T](NamedTuple):
     value: T
@@ -19,18 +18,18 @@ type Result[T] = Okay[T] | Fail
 type Skiped = None
 
 class Parser[T](Monad[T], Alternative[T]):
-    def __init__(self, fn: Callable[[str], Result[T]]) -> None:
-        self.parse = fn
+    def __init__(self, _fn: Callable[[str], Result[T]]) -> None:
+        self.parse = _fn
     
-    def __call__(self, src: str):
-        return self.parse(src)
+    def __call__(self, _input: str):
+        return self.parse(_input)
 
     @override
     @classmethod
-    def of(cls, val: T):
+    def of(cls, _val: T):
         ''' pure function in Haskell
         '''
-        return cls(lambda src: Okay(val, src))
+        return cls(lambda src: Okay(_val, src))
 
     @override
     @classmethod
@@ -40,23 +39,23 @@ class Parser[T](Monad[T], Alternative[T]):
         return cls(lambda _: Fail([]))
    
     @classmethod
-    def okay(cls, val: T):
-        return cls.of(val)
+    def okay(cls, _val: T):
+        return cls.of(_val)
 
     @classmethod
     def fail(cls):
         return cls.empty()
         
     @override
-    def map[T1](self: 'Parser[T]', fn: Callable[[T], T1]):
-        return cast(Parser[T1], self.bind(lambda x: Parser.okay(fn(x))))
+    def map[T1](self: 'Parser[T]', _fn: Callable[[T], T1]):
+        return self.bind(lambda x: Parser.okay(_fn(x)))
     
     @override
     def apply[T1](
         self: 'Parser[Callable[[T], T1]]',
-        p1: Lazy['Parser[T]'],
+        _p: Lazy['Parser[T]'],
     ):
-        return cast(Parser[T1], self.bind(lambda f: p1().bind(lambda x: Parser.okay(f(x)))))
+        return self.bind(lambda f: _p().bind(lambda x: Parser.okay(f(x))))
 
     @override
     def alter_[T1](
@@ -64,33 +63,35 @@ class Parser[T](Monad[T], Alternative[T]):
         _p: 'Parser[T1]'
     ):
         @Parser
-        def parse(src: str) -> Result[T | T1]:
-            match self(src):
-                case Okay(val, rest): return Okay(val, rest)
-                case Fail(e1):
-                    match _p(src):
-                        case Okay(val, rest): return Okay(val, rest)
-                        case Fail(e2): return Fail(e1 + e2)
+        def parse(_input: str) -> Result[T | T1]:
+            match self(_input):
+                case Okay(value=val, rest=rest): return Okay(val, rest)
+                case Fail(message=e1):
+                    match _p(_input):
+                        case Okay(value=val, rest=rest): return Okay(val, rest)
+                        case Fail(message=e2): return Fail(e1 + e2)
+                        case _: raise ValueError
+                case _: raise ValueError
         return parse
 
     @override
     def bind[T1](
         self: 'Parser[T]',
-        fn: Callable[[T], 'Parser[T1]']
+        _fn: Callable[[T], 'Parser[T1]']
     ):
         @Parser
-        def parse(src: str) -> Result[T1]:
-            match self(src):
-                case Okay(val, rest): return fn(val)(rest)
-                case Fail(err): return Fail(err)
+        def parse(_input: str) -> Result[T1]:
+            match self(_input):
+                case Okay(value=val, rest=rest): return _fn(val)(rest)
+                case Fail(message=err): return Fail(err)
         return parse
 
     @override
-    def count(self, n: int):
-        return cast(Parser[list[T]], super().count(n))
+    def count(self, _n: int):
+        return cast(Parser[list[T]], super().count(_n))
     
-    def where(self, cond: Callable[[T], bool]):
-        return self.bind(lambda x: Parser.okay(x) if cond(x) else Parser.fail())
+    def where(self, _cond: Callable[[T], bool]):
+        return self.bind(lambda x: Parser.okay(x) if _cond(x) else Parser.fail())
 
     @override
     def some(self):
@@ -107,18 +108,18 @@ class Parser[T](Monad[T], Alternative[T]):
     def str(self: 'Parser[tuple[str, ...]]') -> 'Parser[str]': ...
 
     def str(self: 'Parser[Any]') -> 'Parser[str]':
-        def __str(val: Iterable[str]) -> str:
+        def _fn1(val: Iterable[str]) -> str:
             return ''.join(val)
-        return self.map(__str)
+        return self.map(_fn1)
     
     def skip(self) -> 'Parser[Skiped]':
         return self.map(lambda _: None)
     
-    def at[*Ts](self: 'Parser[tuple[*Ts]]', index: int):
-        def __at(val: tuple[*Ts]):
-            assert 0 <= index < len(val), f'{index=}, {val=}'
-            return val[index]
-        return self.map(__at)
+    def at[*Ts](self: 'Parser[tuple[*Ts]]', _index: int):
+        def _fn1(val: tuple[*Ts]):
+            assert 0 <= _index < len(val), f'{_index=}, {val=}'
+            return val[_index]
+        return self.map(_fn1)
     
     def as_type[T1](self, tp: Type[T1]):
         return cast(Parser[tp], self)
@@ -126,21 +127,33 @@ class Parser[T](Monad[T], Alternative[T]):
     def maybe(self) -> 'Parser[T | None]':
         return self.alter_(Parser.okay(None))
     
-    def range(self, ranges: Iterable[T]):
-        return self.where(lambda v: v in ranges)
+    def range(self, _ranges: Iterable[T]):
+        return self.where(lambda v: v in _ranges)
 
-    def eq(self, val: T):
-        return self.where(lambda v: v == val)    
+    def eq(self, _val: T):
+        return self.where(lambda v: v == _val)    
     
-    def neq(self, val: T):
-        return self.where(lambda v: v != val)
+    def neq(self, _val: T):
+        return self.where(lambda v: v != _val)
     
-    def sep_by[T1](self, __sep: 'Parser[T1]'):
-        remains = cast(Parser[list[T]], hseq(__sep, self).at(1).many())
-        return cast(Parser[list[T]], self.liftA2(cons, lambda: remains))
+    def sep_by[T1](self, _sep: 'Parser[T1]'):
+        remains = hseq(_sep, self).at(1).many().as_type(list[T])
+        return cast(Parser[list[T]], super().liftA2(cons, lambda: remains))
 
     def ignore[T1](self, _p: 'Parser[T1]'):
         return cast(Parser[T], hseq(_p.many(), self).at(1))
+    
+    def chainl1(self, _op: 'Parser[Callable[[T], Callable[[T], T]]]'):
+        def rest(x: T) -> Parser[T]:
+            return _op.bind(lambda op: self.bind(lambda y: rest(op(x)(y)))).alter_(Parser.okay(x))
+        return self.bind(lambda x: rest(x))
+    
+    def chainr1(self, _op: 'Parser[Callable[[T], Callable[[T], T]]]'):
+        scan = self.bind(lambda x: rest(x))
+        def rest(x: T) -> Parser[T]:
+            return _op.bind(lambda op: scan.bind(lambda y: op(x)(y)))
+        return scan
+        
 
 def alter[T1, T2](_p1: Parser[T1], _p2: Parser[T2]):
     return _p1.alter_(_p2)

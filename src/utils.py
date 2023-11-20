@@ -5,49 +5,49 @@ def const[A](a: A):
     return func
 
 
-def cons[T](a: T):
-    def put(l: list[T]):
-        return [a, *l]
+def cons[T](_a: T):
+    def put(_l: list[T]):
+        return [_a, *_l]
     return put
 
 
-def identity[T](x: T):
-    return x
+def identity[T](_x: T):
+    return _x
 
 
 def curry2[T, U, V](
-    fn: Callable[[T, U], V]
+    _fn: Callable[[T, U], V]
 ) -> Callable[[T], Callable[[U], V]]:
-    return lambda t: lambda u: fn(t, u)
+    return lambda t: lambda u: _fn(t, u)
 
 
 def uncurry2[T, U, V](
-    fn: Callable[[T], Callable[[U], V]]
+    _fn: Callable[[T], Callable[[U], V]]
 ) -> Callable[[T, U], V]:
-    return lambda t, u: fn(t)(u)
+    return lambda t, u: _fn(t)(u)
 
 
 def flip[T, U, V](
-    fn: Callable[[T], Callable[[U], V]]
+    _fn: Callable[[T], Callable[[U], V]]
 ) -> Callable[[U], Callable[[T], V]]:
-    return lambda u: lambda t: fn(t)(u)
+    return lambda u: lambda t: _fn(t)(u)
 
 
 def compose[T, U](
-    *fns: Callable[[T], U]
+    *_fns: Callable[[T], U]
 ) -> Callable[[T], U]:
     def helper(x: T) -> U:
-        for fn in reversed(fns):
+        for fn in reversed(_fns):
             x = fn(x)
         return cast(U, x)
     return helper
 
 
 def pipes[T, U](
-    *fns: Callable[[T], U]
+    *_fns: Callable[[T], U]
 ) -> Callable[[T], U]:
     def helper(x: T) -> U:
-        for func in fns:
+        for func in _fns:
             x = func(x)
         return cast(U, x)
     return helper

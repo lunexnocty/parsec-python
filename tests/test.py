@@ -1,7 +1,7 @@
 import unittest
 
 
-from src import Okay, Fail
+from src.parsec import Okay, Fail
 from src.basic import identifier, number, blank, comma
 
 class TestBasicParser(unittest.TestCase):

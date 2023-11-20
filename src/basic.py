@@ -1,16 +1,10 @@
 from functools import partial
 
-from parsec import Parser, Result, Okay, Fail, hsel, hseq, seq, sel
-
-__all__ = ['item', 'alpha', 'lower', 'upper', 'blank', 'alnum',
-           'digit', 'bindigit', 'octdigit', 'hexdigit',
-           'decinteger', 'bininteger', 'octinteger', 'hexinteger', 'integer',
-           'pointfloat', 'exponentfloat', 'floatnumber',
-           'number', 'identifier']
+from src.parsec import Parser, Result, Okay, Fail, hsel, hseq, seq, sel
 
 @Parser
-def item(src: str) -> Result[str]:
-    return Okay(src[0], src[1:]) if src else Fail(['EOFError'])
+def item(_input: str) -> Result[str]:
+    return Okay(_input[0], _input[1:]) if _input else Fail(['EOFError'])
 
 char = item.eq
 dot = char('.')
