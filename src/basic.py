@@ -6,7 +6,13 @@ from src.parsec import Parser, Result, Okay, Fail, hsel, hseq, seq, sel
 def item(_input: str) -> Result[str]:
     return Okay(_input[0], _input[1:]) if _input else Fail(['EOFError'])
 
-char = item.eq
+def literal(_token: str):
+    @Parser
+    def parse(_input: str):
+        return Okay(_token, _input[len(_token):]) if _input.startswith(_token) else Fail([])
+    return parse
+
+char = literal
 dot = char('.')
 comma = char(',')
 semicolon = char(';')
@@ -74,6 +80,3 @@ identifier = seq(
     sel(alpha, underline),
     sel(alnum, underline).many().str()
 ).str()
-
-def literal(string: str):
-    return seq(*(char(ch) for ch in string)).str()
