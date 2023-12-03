@@ -125,7 +125,16 @@ class Parser[T]:
     
     def sep_by[T1](self, _sep: 'Parser[T1]'):
         remains = hseq(_sep, self).at(1).many().as_type(list[T])
-        return pair(self, remains).map(lambda val: [val[0], *val[1]])
+        return self.bind(lambda x: remains.bind(lambda xs: Parser.okay([x, *xs])))
+
+    def left[T1](self, _p: 'Parser[T1]'):
+        return cast(Parser[T], pair(_p, self).at(1))
+        
+    def right[T1](self, _p: 'Parser[T1]'):
+        return cast(Parser[T], pair(self, _p).at(0))
+
+    def between[T1, T2](self, _left: 'Parser[T1]', _right: 'Parser[T2]'):
+        return cast(Parser[T], hseq(_left, self, _right).at(1))
 
     def ignore[T1](self, _p: 'Parser[T1]'):
         return cast(Self, hseq(_p.many(), self).at(1))
@@ -138,7 +147,7 @@ class Parser[T]:
     def chainr1(self, _op: 'Parser[Callable[[T], Callable[[T], T]]]'):
         scan = self.bind(lambda x: rest(x))
         def rest(x: T) -> Parser[T]:
-            return _op.bind(lambda op: scan.bind(lambda y: op(x)(y)))
+            return _op.bind(lambda op: scan.bind(lambda y: rest(op(x)(y))))
         return scan
 
 
