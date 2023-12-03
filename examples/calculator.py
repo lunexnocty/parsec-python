@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from src.basic import number, char, open_round, close_round, blank
-from src.parsec import Parser, Result, alter, hseq
+from src.parsec import Parser, Result, alter
 from src.utils import const
 
 """
@@ -37,7 +37,7 @@ num = number.ignore(blank).map(Number)
 def factor(_input: str) -> Result[Expr]:
     l_round = open_round.ignore(blank)
     r_round = close_round.ignore(blank)
-    exp = hseq(l_round, expr, r_round).at(1).as_type(Expr)
+    exp = expr.between(l_round, r_round)
     return alter(exp, num)(_input)
 
 def binary_op(op: Opcode):
