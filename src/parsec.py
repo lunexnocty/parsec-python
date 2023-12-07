@@ -1,9 +1,19 @@
 
-from typing import Self, Type, NamedTuple, Callable, Iterable
+from email import message
+from typing import Any, Type, NamedTuple, Callable, Iterable
 from typing import cast, overload
 from functools import reduce
 
-from src.utils import const
+from src.utils import const, fst, snd
+
+class Pos(NamedTuple):
+    line: int = 1
+    column: int = 1
+
+class State:
+    def __init__(self, _input: str):
+        self.data = _input
+        self.pos = Pos()
 
 class Okay[T](NamedTuple):
     value: T
@@ -13,8 +23,6 @@ class Fail(NamedTuple):
     message: list[str]
 
 type Result[T] = Okay[T] | Fail
-
-type Skiped = None
 
 class Parser[T]:
     def __init__(self, _fn: Callable[[str], Result[T]]) -> None:
@@ -28,8 +36,8 @@ class Parser[T]:
         return cls(lambda src: Okay(_val, src))
 
     @classmethod
-    def fail(cls):
-        return cls(const(Fail([])))
+    def fail(cls, _err: list[str] = []):
+        return cls(const(Fail(_err)))
 
     def bind[T1](
         self: 'Parser[T]',
@@ -44,6 +52,14 @@ class Parser[T]:
         
     def map[T1](self: 'Parser[T]', _fn: Callable[[T], T1]):
         return self.bind(lambda x: Parser.okay(_fn(x)))
+    
+    def error(self, _fn: Callable[[list[str]], list[str]]):
+        @Parser
+        def parse(_input: str) -> Result[T]:
+            match self(_input):
+                case Okay(value=val, rest=rest): return Okay(val, rest)
+                case Fail(message=err): return Fail(_fn(err))
+        return parse
     
     def apply[T1](
         self: 'Parser[Callable[[T], T1]]',
@@ -65,12 +81,12 @@ class Parser[T]:
                         case Fail(message=e2): return Fail(e1 + e2)
         return parse
 
-    def count(self, _n: int) -> 'Parser[list[T]]':
+    def repeat(self, _n: int) -> 'Parser[list[T]]':
         if _n == 0: return Parser.okay([])
-        return self.bind(lambda x: self.count(_n - 1).bind(lambda xs: Parser.okay([x, *xs])))
+        return self.bind(lambda x: self.repeat(_n - 1).bind(lambda xs: Parser.okay([x, *xs])))
     
-    def where(self, _cond: Callable[[T], bool]):
-        return self.bind(lambda x: Parser.okay(x) if _cond(x) else Parser.fail())
+    def where(self, _cond: Callable[[T], bool], _err: str = 'InvalidValue'):
+        return self.bind(lambda x: Parser.okay(x) if _cond(x) else Parser.fail([f'got `{x}` but {_err}']))
 
     def some(self):
         return self.bind(lambda x: self.many().bind(lambda xs: Parser.okay([x, *xs])))
@@ -99,9 +115,6 @@ class Parser[T]:
             return ''.join(val)
         return self.map(_fn1)
     
-    def skip(self) -> 'Parser[Skiped]':
-        return self.map(const(None))
-    
     def at[*Ts](self: 'Parser[tuple[*Ts]]', _index: int):
         def _fn1(val: tuple[*Ts]):
             assert 0 <= _index < len(val), f'{_index=}, {val=}'
@@ -115,30 +128,39 @@ class Parser[T]:
         return self.alter_(Parser.okay(None))
     
     def range(self, _ranges: Iterable[T]):
-        return self.where(lambda v: v in _ranges)
+        return self.where(lambda v: v in _ranges, f'expected value in range `{list(_ranges)}`')
 
     def eq(self, _val: T):
-        return self.where(lambda v: v == _val)    
+        return self.where(lambda v: v == _val, f'expected `{_val}`')    
     
     def neq(self, _val: T):
-        return self.where(lambda v: v != _val)
+        return self.where(lambda v: v != _val, f'not expected `{_val}`')
+   
+    def prefix[T1](self, _p: 'Parser[T1]'):
+        return pair(_p, self).map(snd)
     
-    def sep_by[T1](self, _sep: 'Parser[T1]'):
-        remains = hseq(_sep, self).at(1).many().as_type(list[T])
-        return self.bind(lambda x: remains.bind(lambda xs: Parser.okay([x, *xs])))
-
-    def left[T1](self, _p: 'Parser[T1]'):
-        return cast(Parser[T], pair(_p, self).at(1))
-        
-    def right[T1](self, _p: 'Parser[T1]'):
-        return cast(Parser[T], pair(self, _p).at(0))
+    def suffix[T1](self, _p: 'Parser[T1]'):
+        return pair(self, _p).map(fst)
 
     def between[T1, T2](self, _left: 'Parser[T1]', _right: 'Parser[T2]'):
-        return cast(Parser[T], hseq(_left, self, _right).at(1))
+        return self.prefix(_left).suffix(_right)
 
-    def ignore[T1](self, _p: 'Parser[T1]'):
-        return cast(Self, hseq(_p.many(), self).at(1))
+    def trim[T1](self, _p: 'Parser[T1]'):
+        return self.between(_p.many(), _p.many())
     
+    def ltrim[T1](self, _p: 'Parser[T1]'):
+        return self.prefix(_p.many())
+    
+    def rtrim[T1](self, _p: 'Parser[T1]'):
+        return self.suffix(_p.many())
+    
+    def default[T1](self, _val: T1):
+        return self.alter_(Parser.okay(_val))
+     
+    def sep_by[T1](self, _sep: 'Parser[T1]'):
+        remains = self.prefix(_sep).many()
+        return self.bind(lambda x: remains.bind(lambda xs: Parser.okay([x, *xs])))
+
     def chainl1(self, _op: 'Parser[Callable[[T], Callable[[T], T]]]'):
         def rest(x: T) -> Parser[T]:
             return _op.bind(lambda op: self.bind(lambda y: rest(op(x)(y)))).alter_(Parser.okay(x))
@@ -239,9 +261,10 @@ def hsel[T1, T2, T3, T4, T5, T6, T7, T8, T9](
     _p6: Parser[T6] | None = None,
     _p7: Parser[T7] | None = None,
     _p8: Parser[T8] | None = None,
-    _p9: Parser[T9] | None = None
+    _p9: Parser[T9] | None = None,
+    *_ps: Parser[Any]
 ):
-    plist: list[Parser] = list(filter(None, (_p1, _p2, _p3, _p4, _p5, _p6, _p7, _p8, _p9)))
+    plist: list[Parser[Any]] = list(filter(None, (_p1, _p2, _p3, _p4, _p5, _p6, _p7, _p8, _p9, *_ps)))
     return sel(*plist)
 
 @overload
@@ -308,7 +331,8 @@ def hseq[T1, T2, T3, T4, T5, T6, T7, T8, T9](
     _p6: Parser[T6] | None = None,
     _p7: Parser[T7] | None = None,
     _p8: Parser[T8] | None = None,
-    _p9: Parser[T9] | None = None
+    _p9: Parser[T9] | None = None,
+    *_ps: Parser[Any]
 ):
-    plist: list[Parser] = list(filter(None, (_p1, _p2, _p3, _p4, _p5, _p6, _p7, _p8, _p9)))
+    plist: list[Parser[Any]] = list(filter(None, (_p1, _p2, _p3, _p4, _p5, _p6, _p7, _p8, _p9, *_ps)))
     return seq(*plist).map(tuple)

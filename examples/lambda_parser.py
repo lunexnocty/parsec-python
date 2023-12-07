@@ -34,7 +34,7 @@ class App(Expr):
 """
 
 def build_fun(_value: tuple[list[Var], Expr]):
-    return reduce(lambda e, p: Abs(param=p, body=e), reversed(_value[0]), initial=_value[1])
+    return reduce(lambda e, p: Abs(param=p, body=e), reversed(_value[0]), _value[1])
 
 def app_op(left: Expr):
     def _fn(right: Expr) -> Expr:
@@ -43,14 +43,14 @@ def app_op(left: Expr):
 
 @Parser
 def atom(_input: str) -> Result[Expr]:
-    var = identifier.ignore(blank).map(Var)
+    var = identifier.trim(blank).map(Var)
     
-    arrow = literal('->').ignore(blank)
-    prompt = char('\\').ignore(blank)
+    arrow = literal('->').trim(blank)
+    prompt = char('\\').trim(blank)
     fun = pair(var.some().between(prompt, arrow), expr).map(build_fun)
     
-    l_round = open_round.ignore(blank)
-    r_round = close_round.ignore(blank)
+    l_round = open_round.trim(blank)
+    r_round = close_round.trim(blank)
     factor = expr.between(l_round, r_round)
     return sel(factor, fun, var.as_type(Expr))(_input)
 

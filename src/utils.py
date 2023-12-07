@@ -42,7 +42,6 @@ def compose[T, U](
         return cast(U, x)
     return helper
 
-
 def pipes[T, U](
     *_fns: Callable[[T], U]
 ) -> Callable[[T], U]:
@@ -51,3 +50,15 @@ def pipes[T, U](
             x = func(x)
         return cast(U, x)
     return helper
+
+def head[T, *Ts](_tuples: tuple[T, *Ts]):
+    return _tuples[0]
+
+def tail[T, *Ts](_tuples: tuple[T, *Ts]):
+    return cast(tuple[*Ts], _tuples[1:])
+
+def fst[T, *Ts](_tuples: tuple[T, *Ts]):
+    return head(_tuples)
+
+def snd[T1, T2, *Ts](_tuples: tuple[T1, T2, *Ts]):
+    return head(tail(_tuples))
