@@ -1,19 +1,50 @@
+import os
 from functools import partial
 
-from src.parsec import Parser, Result, Okay, Fail, hsel, seq, sel
+from src.parsec import Parser, Input, Result, Okay, Fail, hsel, seq, sel, State
+
+
+class Path:
+    def __init__(self, _url: str) -> None:
+        # assert os.path.isfile(_url), FileNotFoundError(_url)
+        self.url = _url
+
+
+class Pos(State[str]):
+    def __init__(self, filename: Path | None = None, line = 1, column = 1) -> None:
+        self.url =  Path('::memory') if filename is None else filename
+        self.line = line
+        self.column = column
+    
+    def update(self, val: str):
+        match val:
+            case '\r':
+                return Pos(self.url, line=self.line, column=1)
+            case '\n':
+                return Pos(self.url, line=self.line + 1, column=1)
+            case _:
+                return Pos(self.url, line=self.line, column = self.column + 1)
+
+def stream(src: str | Path) -> Input[str]:
+    if isinstance(src, str):
+        return Input(src, Pos())
+    with open(src.url, 'r') as f:
+        return Input(f.read(), Pos(src))
 
 @Parser
-def item(_input: str) -> Result[str]:
-    return Okay(_input[0], _input[1:]) if _input else Fail(['EOFError'])
+def item(_in: Input[str]) -> Result[str, str]:
+    val, rest = _in.get()
+    return Fail(['EOFError']) if val is None else Okay(val, rest)
+
+char = item.eq
 
 def literal(_token: str):
     @Parser
-    def parse(_input: str) -> Result[str]:
-        if not _token: return Okay('', _input)
-        return char(_token[0]).bind(lambda c: literal(_token[1:]).bind(lambda cs: Parser.okay(c + cs)))(_input)
+    def parse(_in: Input[str]) -> Result[str, str]:
+        if not _token: return Okay('', _in)
+        return char(_token[0]).bind(lambda c: literal(_token[1:]).bind(lambda cs: Parser.okay(c + cs)))(_in)
     return parse
 
-char = item.eq
 dot = char('.')
 comma = char(',')
 semicolon = char(';')

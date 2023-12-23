@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from functools import reduce
 
-from src.basic import identifier, blank, char, dot, blanks, literal, open_round, close_round
-from src.parsec import Parser, Result, pair, sel
+from src.text import identifier, blank, char, dot, blanks, literal, open_round, close_round
+from src.parsec import Parser, Input, Result, pair, sel
 from src.utils import const
 
 """
@@ -42,7 +42,7 @@ def app_op(left: Expr):
     return _fn
 
 @Parser
-def atom(_input: str) -> Result[Expr]:
+def atom(_input: Input[str]) -> Result[str, Expr]:
     var = identifier.trim(blank).map(Var)
     
     arrow = literal('->').trim(blank)
