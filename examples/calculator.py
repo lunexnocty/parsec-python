@@ -2,8 +2,8 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from src.basic import number, char, open_round, close_round, blank
-from src.parsec import Parser, Result, alter
+from src.text import number, char, open_round, close_round, blank
+from src.parsec import Parser, Input, Result, alter
 from src.utils import const
 
 """
@@ -34,7 +34,7 @@ EBNF of calculator:
 
 num = number.trim(blank).map(Number)
 @Parser
-def factor(_input: str) -> Result[Expr]:
+def factor(_input: Input[str]) -> Result[str, Expr]:
     l_round = open_round.trim(blank)
     r_round = close_round.trim(blank)
     exp = expr.between(l_round, r_round)
@@ -52,7 +52,3 @@ add_or_sub = alter(binary_op('+'), binary_op('-'))
 mul_or_div_exp = factor.chainl1(mul_or_div)
 add_or_sub_exp = mul_or_div_exp.chainl1(add_or_sub)
 expr = add_or_sub_exp
-
-if __name__ == '__main__':
-    ret = expr(' 1 * 2 + 1 / ( 2 - 1 ) * 3  ')
-    print(ret)
