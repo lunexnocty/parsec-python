@@ -1,7 +1,6 @@
-from typing import Any, Type, NamedTuple, Callable, Iterable, Sequence, Union, Self, NewType
+from typing import Any, Type, NamedTuple, Callable, Iterable, Sequence, Self
 from typing import cast, overload
 from abc import ABC, abstractmethod
-import os
 from functools import reduce
 
 from src.utils import const, fst, snd
@@ -122,8 +121,49 @@ class Parser[I, T]:
             return ''.join(val)
         return self.map(_fn1)
     
-    def at[*Ts](self: 'Parser[I, tuple[*Ts]]', _index: int) -> 'Parser[I, Union[*Ts]]':
-        def _fn1(val: tuple[*Ts]):
+    @overload
+    def at[T1, T2](
+        self: 'Parser[I, tuple[T1, T2]]',
+        _index: int
+    ) -> 'Parser[I, T1 | T2]': ...
+    @overload
+    def at[T1, T2, T3](
+        self: 'Parser[I, tuple[T1, T2, T3]]',
+        _index: int
+    ) -> 'Parser[I, T1 | T2 | T3]': ...
+    @overload
+    def at[T1, T2, T3, T4](
+        self: 'Parser[I, tuple[T1, T2, T3, T4]]',
+        _index: int
+    ) -> 'Parser[I, T1 | T2 | T3 | T4]': ...
+    @overload
+    def at[T1, T2, T3, T4, T5](
+        self: 'Parser[I, tuple[T1, T2, T3, T4, T5]]',
+        _index: int
+    ) -> 'Parser[I, T1 | T2 | T3 | T4 | T5]': ...
+    @overload
+    def at[T1, T2, T3, T4, T5, T6](
+        self: 'Parser[I, tuple[T1, T2, T3, T4, T5, T6]]',
+        _index: int
+    ) -> 'Parser[I, T1 | T2 | T3 | T4 | T5 | T6]': ...
+    @overload
+    def at[T1, T2, T3, T4, T5, T6, T7](
+        self: 'Parser[I, tuple[T1, T2, T3, T4, T5, T6, T7]]',
+        _index: int
+    ) -> 'Parser[I, T1 | T2 | T3 | T4 | T5 | T6 | T7]': ...
+    @overload
+    def at[T1, T2, T3, T4, T5, T6, T7, T8](
+        self: 'Parser[I, tuple[T1, T2, T3, T4, T5, T6, T7, T8]]',
+        _index: int
+    ) -> 'Parser[I, T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8]': ...
+    @overload
+    def at[T1, T2, T3, T4, T5, T6, T7, T8, T9](
+        self: 'Parser[I, tuple[T1, T2, T3, T4, T5, T6, T7, T8, T9]]',
+        _index: int
+    ) -> 'Parser[I, T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8 | T9]': ...
+
+    def at(self: 'Parser[I, tuple]', _index: int) -> 'Parser[I, Any]':
+        def _fn1(val: tuple):
             assert 0 <= _index < len(val), f'{_index=}, {val=}'
             return val[_index]
         return self.map(_fn1)

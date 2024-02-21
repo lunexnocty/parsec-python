@@ -1,4 +1,3 @@
-import os
 from functools import partial
 
 from src.parsec import Parser, Input, Result, Okay, Fail, hsel, seq, sel, State

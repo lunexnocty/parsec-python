@@ -1,17 +1,17 @@
 from typing import Any, Callable, cast
 
-def const[A](a: A):
-    def func(b: Any) -> A: return a
+def const[A](a: A) -> Callable[[Any], A]:
+    def func(_: Any) -> A: return a
     return func
 
 
-def cons[T](_a: T):
+def cons[T](_a: T) -> Callable[[list[T]], list[T]]:
     def put(_l: list[T]):
         return [_a, *_l]
     return put
 
 
-def identity[T](_x: T):
+def identity[T](_x: T) -> T:
     return _x
 
 
@@ -55,10 +55,10 @@ def head[T, *Ts](_tuples: tuple[T, *Ts]):
     return _tuples[0]
 
 def tail[T, *Ts](_tuples: tuple[T, *Ts]):
-    return cast(tuple[*Ts], _tuples[1:])
+    return _tuples[1:]
 
 def fst[T, *Ts](_tuples: tuple[T, *Ts]):
     return head(_tuples)
 
 def snd[T1, T2, *Ts](_tuples: tuple[T1, T2, *Ts]):
-    return head(tail(_tuples))
+    return _tuples[1]
