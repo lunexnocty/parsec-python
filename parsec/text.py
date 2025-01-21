@@ -88,12 +88,5 @@ identifier = seq(sel(alpha, underline), sel(alnum, underline).many().map(''.join
 
 def parse[R](parser: Parser[str, R], text: str):
     ctx = Context(TextStream(text), TextState())
-    ret = parser.run(ctx)
-    # print(f'parse "{text}" used {ret.consumed} tokens at {ret.context.state.format()}')
-    # match ret.outcome:
-    #     case Okay(value=val):
-    #         print(f'  {val}')
-    #     case Fail(error=err):
-    #         print('\n  '.join(list(map(str, err))))
-    return ret
+    return parser.run(ctx)
         
