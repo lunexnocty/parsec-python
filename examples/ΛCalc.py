@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from functools import reduce
 
-from src.text import identifier, blank, char, dot, blanks, literal, open_round, close_round
-from src.parsec import Parser, Input, Result, pair, sel
-from src.utils import const
+from parsec.text import identifier, blank, char, literal, open_round, close_round
+from parsec import Parser, Result, sel, Context
 
 """
 AST of Lambda
@@ -42,16 +41,17 @@ def app_op(left: Expr):
     return _fn
 
 @Parser
-def atom(_input: Input[str]) -> Result[str, Expr]:
-    var = identifier.trim(blank).map(Var)
+def atom(ctx: Context[str]) -> Result[str, Expr]:
+    var = identifier.ltrim(blank).map(Var)
     
-    arrow = literal('->').trim(blank)
-    prompt = char('\\').trim(blank)
-    fun = pair(var.some().between(prompt, arrow), expr).map(build_fun)
+    arrow = literal('->').ltrim(blank)
+    prompt = char('\\').ltrim(blank)
+    fun = var.some().between(prompt, arrow).pair(lam_expr).map(build_fun)
     
-    l_round = open_round.trim(blank)
-    r_round = close_round.trim(blank)
-    factor = expr.between(l_round, r_round)
-    return sel(factor, fun, var.as_type(Expr))(_input)
+    l_round = open_round.ltrim(blank)
+    r_round = close_round.ltrim(blank)
+    factor = lam_expr.between(l_round, r_round)
+    return sel(factor, fun, var.as_type(Expr)).run(ctx)
 
-expr = atom.chainl1(blanks.map(const(app_op)))
+op = blank.some().map(lambda _: app_op)
+lam_expr = atom.chainl1(op)
