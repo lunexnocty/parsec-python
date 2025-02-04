@@ -3,7 +3,7 @@ from typing import Callable, Any, cast, overload
 from collections.abc import Iterable
 from functools import reduce
 from dataclasses import dataclass
-from parsec.err import ParseErr, ValueError, Excepted, EOSError
+from parsec.err import ParseErr, UnExceptedError, Excepted, EOSError
 
 class IState[I](ABC):
     @abstractmethod
@@ -79,10 +79,15 @@ class Result[I, R]:
 
 
 class Parser[I, R]:
-    def __init__(self,fn: Callable[[Context[I]], Result[I, R]]):
+    def __init__(self, fn: Callable[[Context[I]], Result[I, R]] | None = None):
         self._fn = fn
+
+    def define(self, parser: 'Parser[I, R]'):
+        self._fn = lambda ctx: parser.run(ctx)
     
-    def run[T](self, ctx: Context[I]) -> Result[I, R]:
+    def run(self, ctx: Context[I]) -> Result[I, R]:
+        if self._fn is None:
+            raise RuntimeError('UnDefined Parser')
         return self._fn(ctx)
 
     @classmethod
@@ -166,7 +171,7 @@ class Parser[I, R]:
         return self.suffix(sep).many()
     
     def many_till(self, end: 'Parser[I, Any]') -> 'Parser[I, list[R]]':
-        @Parser[I, list[R]]
+        @Parser
         def parse(ctx: Context[I]) -> Result[I, list[R]]:
             return end.map(lambda _: []).alter(parse.apply(self.map(lambda x: lambda xs: [x, *xs]))).run(ctx)
         return parse
@@ -177,7 +182,7 @@ class Parser[I, R]:
         return self.bind(lambda x: self.repeat(n - 1).bind(lambda xs: Parser.okay([x, *xs])))
 
     def where(self, fn: Callable[[R], bool]) -> 'Parser[I, R]':
-        return self.bind(lambda v: Parser.okay(v) if fn(v) else Parser.fail(ValueError(v)))
+        return self.bind(lambda v: Parser.okay(v) if fn(v) else Parser.fail(UnExceptedError(v)))
     
     def eq(self, value: R) -> 'Parser[I, R]':
         return self.where(lambda v: v == value).label(f'{value}')
