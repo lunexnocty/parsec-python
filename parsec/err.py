@@ -3,7 +3,7 @@ from dataclasses import dataclass
 class ParseErr: ...
 
 @dataclass
-class ValueError[I](ParseErr):
+class UnExceptedError[I](ParseErr):
     value: I
     def __str__(self) -> str:
         return f'{self.__class__.__name__}: unexcepted "{self.value}" caused by:'

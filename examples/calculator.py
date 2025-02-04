@@ -50,18 +50,11 @@ EBNF of calculator:
 """
 
 num = number.trim(blank).map(Number)
-
-@Parser[str, Expr]
-def factor(ctx: Context[str]) -> Result[str, Expr]:
-    l_round = open_round.trim(blank)
-    r_round = close_round.trim(blank)
-    exp = expr.between(l_round, r_round)
-    return sel(exp, num.as_type(Expr)).run(ctx)
-
 l_round = open_round.trim(blank)
 r_round = close_round.trim(blank)
 
-
+expr = Parser()
+factor = sel(expr.between(l_round, r_round), num)
 def binary_op(op: Opcode):
     def _fn1(left: Expr):
         def _fn2(right: Expr) -> Expr:
@@ -73,4 +66,4 @@ mul_or_div = sel(binary_op('*'), binary_op('/'))
 add_or_sub = sel(binary_op('+'), binary_op('-'))
 mul_or_div_exp = factor.chainl1(mul_or_div)
 add_or_sub_exp = mul_or_div_exp.chainl1(add_or_sub)
-expr = add_or_sub_exp
+expr.define(add_or_sub_exp)

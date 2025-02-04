@@ -40,18 +40,14 @@ def app_op(left: Expr):
         return App(lhs=left, rhs=right)
     return _fn
 
-@Parser
-def atom(ctx: Context[str]) -> Result[str, Expr]:
-    var = identifier.ltrim(blank).map(Var)
-    
-    arrow = literal('->').ltrim(blank)
-    prompt = char('\\').ltrim(blank)
-    fun = var.some().between(prompt, arrow).pair(lam_expr).map(build_fun)
-    
-    l_round = open_round.ltrim(blank)
-    r_round = close_round.ltrim(blank)
-    factor = lam_expr.between(l_round, r_round)
-    return sel(factor, fun, var.as_type(Expr)).run(ctx)
-
+lam_expr = Parser()
+var = identifier.ltrim(blank).map(Var)
+arrow = literal('->').ltrim(blank)
+prompt = char('\\').ltrim(blank)
+fun = var.some().between(prompt, arrow).pair(lam_expr).map(build_fun)
+l_round = open_round.ltrim(blank)
+r_round = close_round.ltrim(blank)
+factor = lam_expr.between(l_round, r_round)
+atom = sel(factor, fun, var.as_type(Expr))
 op = blank.some().map(lambda _: app_op)
-lam_expr = atom.chainl1(op)
+lam_expr.define(atom.chainl1(op))
