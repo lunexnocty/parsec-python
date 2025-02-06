@@ -2,3 +2,9 @@
 __pycache__/
 *.py[cod]
 .vscode/
+
+.egg/
+*.egg-info/
+build/
+dist/
+*.log
