@@ -5,7 +5,7 @@ from operator import add, sub, mul, truediv
 from typing import Literal
 
 from parsec.text import number, char, open_round, close_round, blank
-from parsec import Parser, Context, Result, sel
+from parsec import Parser, sel
 
 """
 AST of calculator:
@@ -53,7 +53,7 @@ num = number.trim(blank).map(Number)
 l_round = open_round.trim(blank)
 r_round = close_round.trim(blank)
 
-expr = Parser()
+expr = Parser[str, Expr]()
 factor = sel(expr.between(l_round, r_round), num)
 def binary_op(op: Opcode):
     def _fn1(left: Expr):

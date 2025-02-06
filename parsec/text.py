@@ -3,7 +3,7 @@ from parsec import *
 
 
 class TextStream(IStream[str]):
-    def __init__(self, text: str, offset = 0):
+    def __init__(self, text: str, offset: int = 0):
         self.data = text
         self.offset = offset
 

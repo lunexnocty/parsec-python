@@ -37,18 +37,20 @@ def compose[T, U](
     *_fns: Callable[[T], U]
 ) -> Callable[[T], U]:
     def helper(x: T) -> U:
+        _: Any = x
         for fn in reversed(_fns):
-            x = fn(x)
-        return cast(U, x)
+            _ = fn(_)
+        return cast(U, _)
     return helper
 
 def pipes[T, U](
     *_fns: Callable[[T], U]
 ) -> Callable[[T], U]:
     def helper(x: T) -> U:
+        _: Any = x
         for func in _fns:
-            x = func(x)
-        return cast(U, x)
+            _ = func(_)
+        return cast(U, _)
     return helper
 
 def head[T, *Ts](_tuples: tuple[T, *Ts]):

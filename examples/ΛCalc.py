@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from functools import reduce
 
 from parsec.text import identifier, blank, char, literal, open_round, close_round
-from parsec import Parser, Result, sel, Context
+from parsec import Parser, sel
 
 """
 AST of Lambda
@@ -40,7 +40,7 @@ def app_op(left: Expr):
         return App(lhs=left, rhs=right)
     return _fn
 
-lam_expr = Parser()
+lam_expr = Parser[str, Expr]()
 var = identifier.ltrim(blank).map(Var)
 arrow = literal('->').ltrim(blank)
 prompt = char('\\').ltrim(blank)
