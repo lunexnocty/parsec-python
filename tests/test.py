@@ -1,16 +1,17 @@
 import unittest
 from parsec import text, Okay, Fail
 
+
 class TestParsec(unittest.TestCase):
     def test_number_parser(self):
         # 测试数字解析器
         number_parser = text.number
-        result = text.parse(number_parser, "123")
+        result = text.parse(number_parser, '123')
         self.assertIsInstance(result.outcome, Okay)
         self.assertEqual(result.outcome.value, 123)
 
         # 测试非数字输入
-        result = text.parse(number_parser, "abc")
+        result = text.parse(number_parser, 'abc')
         self.assertIsInstance(result.outcome, Fail)
 
     def test_addition_parser(self):
@@ -20,15 +21,15 @@ class TestParsec(unittest.TestCase):
         expr = number.suffix(add).pair(number).map(lambda x: x[0] + x[1])
 
         # 测试有效的加法表达式
-        result = text.parse(expr, "1 + 2")
+        result = text.parse(expr, '1 + 2')
         self.assertIsInstance(result.outcome, Okay)
         self.assertEqual(result.outcome.value, 3)
 
         # 测试无效的加法表达式
-        result = text.parse(expr, "1 + ")
+        result = text.parse(expr, '1 + ')
         self.assertIsInstance(result.outcome, Fail)
 
-        result = text.parse(expr, "a + 2")
+        result = text.parse(expr, 'a + 2')
         self.assertIsInstance(result.outcome, Fail)
 
     def test_whitespace_handling(self):
@@ -38,7 +39,7 @@ class TestParsec(unittest.TestCase):
         expr = number.suffix(add).pair(number).map(lambda x: x[0] + x[1])
 
         # 测试带有空白字符的表达式
-        result = text.parse(expr, " 1 + 2 ")
+        result = text.parse(expr, ' 1 + 2 ')
         self.assertIsInstance(result.outcome, Fail)
 
     def test_failure_cases(self):
@@ -48,15 +49,16 @@ class TestParsec(unittest.TestCase):
         expr = number.suffix(add).pair(number).map(lambda x: x[0] + x[1])
 
         # 测试无效的输入
-        result = text.parse(expr, "1 + + 2")
+        result = text.parse(expr, '1 + + 2')
         self.assertIsInstance(result.outcome, Fail)
 
-        result = text.parse(expr, "1 + a")
+        result = text.parse(expr, '1 + a')
         self.assertIsInstance(result.outcome, Fail)
 
-        result = text.parse(expr, "1 + 2 + 3")
+        result = text.parse(expr, '1 + 2 + 3')
         self.assertIsInstance(result.outcome, Okay)
         self.assertEqual(result.outcome.value, 3)
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     unittest.main()
