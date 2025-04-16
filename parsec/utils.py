@@ -1,4 +1,4 @@
-from typing import Any, Callable, cast
+from typing import Any, Callable, cast, overload
 
 
 def const[A](a: A) -> Callable[[Any], A]:
@@ -17,14 +17,6 @@ def cons[T](_a: T) -> Callable[[list[T]], list[T]]:
 
 def identity[T](_x: T) -> T:
     return _x
-
-
-def curry2[T, U, V](_fn: Callable[[T, U], V]) -> Callable[[T], Callable[[U], V]]:
-    return lambda t: lambda u: _fn(t, u)
-
-
-def uncurry2[T, U, V](_fn: Callable[[T], Callable[[U], V]]) -> Callable[[T, U], V]:
-    return lambda t, u: _fn(t)(u)
 
 
 def flip[T, U, V](
@@ -67,3 +59,110 @@ def fst[T, *Ts](_tuples: tuple[T, *Ts]):
 
 def snd[T1, T2, *Ts](_tuples: tuple[T1, T2, *Ts]):
     return _tuples[1]
+
+
+@overload
+def curry[T1, R](fn: Callable[[T1], R]) -> Callable[[T1], R]: ...
+
+
+@overload
+def curry[T1, T2, R](
+    fn: Callable[[T1, T2], R],
+) -> Callable[[T1], Callable[[T2], R]]: ...
+
+
+@overload
+def curry[T1, T2, T3, R](
+    fn: Callable[[T1, T2, T3], R],
+) -> Callable[[T1], Callable[[T2], Callable[[T3], R]]]: ...
+
+
+@overload
+def curry[T1, T2, T3, T4, R](
+    fn: Callable[[T1, T2, T3, T4], R],
+) -> Callable[[T1], Callable[[T2], Callable[[T3], Callable[[T4], R]]]]: ...
+
+
+@overload
+def curry[T1, T2, T3, T4, T5, R](
+    fn: Callable[[T1, T2, T3, T4, T5], R],
+) -> Callable[
+    [T1], Callable[[T2], Callable[[T3], Callable[[T4], Callable[[T5], R]]]]
+]: ...
+
+
+@overload
+def curry[T1, T2, T3, T4, T5, T6, R](
+    fn: Callable[[T1, T2, T3, T4, T5, T6], R],
+) -> Callable[
+    [T1],
+    Callable[[T2], Callable[[T3], Callable[[T4], Callable[[T5], Callable[[T6], R]]]]],
+]: ...
+
+
+@overload
+def curry[T1, T2, T3, T4, T5, T6, T7, R](
+    fn: Callable[[T1, T2, T3, T4, T5, T6, T7], R],
+) -> Callable[
+    [T1],
+    Callable[
+        [T2],
+        Callable[
+            [T3], Callable[[T4], Callable[[T5], Callable[[T6], Callable[[T7], R]]]]
+        ],
+    ],
+]: ...
+
+
+@overload
+def curry[T1, T2, T3, T4, T5, T6, T7, T8, R](
+    fn: Callable[[T1, T2, T3, T4, T5, T6, T7, T8], R],
+) -> Callable[
+    [T1],
+    Callable[
+        [T2],
+        Callable[
+            [T3],
+            Callable[
+                [T4], Callable[[T5], Callable[[T6], Callable[[T7], Callable[[T8], R]]]]
+            ],
+        ],
+    ],
+]: ...
+
+
+@overload
+def curry[T1, T2, T3, T4, T5, T6, T7, T8, T9, R](
+    fn: Callable[[T1, T2, T3, T4, T5, T6, T7, T8, T9], R],
+) -> Callable[
+    [T1],
+    Callable[
+        [T2],
+        Callable[
+            [T3],
+            Callable[
+                [T4],
+                Callable[
+                    [T5],
+                    Callable[[T6], Callable[[T7], Callable[[T8], Callable[[T9], R]]]],
+                ],
+            ],
+        ],
+    ],
+]: ...
+
+
+def curry(fn: Callable[..., Any]) -> Callable[..., Any]:
+    from functools import wraps
+
+    def make_curried(expected_args):
+        @wraps(fn)
+        def inner(*args):
+            if len(args) >= expected_args:
+                return fn(*args)
+            return curry(lambda *more: fn(*args, *more))
+
+        return inner
+
+    n = fn.__code__.co_argcount
+    return make_curried(n)

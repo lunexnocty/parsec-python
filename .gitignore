@@ -9,3 +9,5 @@ build/
 dist/
 *.log
 .install.txt
+.python-version
+*.lock
