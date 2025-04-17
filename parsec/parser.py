@@ -1,14 +1,82 @@
-from typing import Callable, Any, Unpack, overload
+from dataclasses import dataclass
+from typing import Callable, cast, Any, Iterable, Unpack, overload
+from functools import reduce
 
-from parsec.context import Context, Result, Okay, Fail
-from parsec.err import ParseErr
-from parsec import combinator as C
-from parsec.utils import flatten
+from parsec.context import Context
+from parsec.err import ParseErr, Expected, UnExpected, EOSErr
+from parsec.utils import true, false, fst, snd, cons, identity, const
+
+
+@dataclass
+class Okay[R]:
+    value: R
+
+
+@dataclass
+class Fail:
+    error: ParseErr
+
+
+@dataclass
+class Result[I, R]:
+    context: Context[I]
+    outcome: Okay[R] | Fail
+    consumed: int
+
+    @classmethod
+    def okay(cls, ctx: Context[I], value: R, consumed: int):
+        return cls(ctx, Okay(value), consumed)
+
+    @classmethod
+    def fail(cls, ctx: Context[I], error: ParseErr, consumed: int):
+        return cls(ctx, Fail(error), consumed)
 
 
 class Parser[I, R]:
     def __init__(self, fn: Callable[[Context[I]], Result[I, R]] | None = None):
         self._fn = fn
+
+    def define(self, parser: "Parser[I, R]"):
+        self._fn = lambda ctx: parser.run(ctx)
+
+    def run(self, ctx: Context[I]) -> Result[I, R]:
+        if self._fn is None:
+            raise RuntimeError("UnDefined Parser")
+        return self._fn(ctx)
+
+    def __rshift__[S](self, fn: Callable[[R], "Parser[I, S]"]) -> "Parser[I, S]":
+        return self.bind(fn)
+
+    def __or__[S](self, p: "Parser[I, S]") -> "Parser[I, R | S]":
+        return self.otherwise(p)
+    
+    def __truediv__[S](self, p: "Parser[I, S]") -> "Parser[I, R | S]":
+        return self.fast_otherwise(p)
+
+    @overload
+    def __and__[S, *TS](
+        self: "Parser[I, tuple[Unpack[TS]]]", p: "Parser[I, S]"
+    ) -> "Parser[I, tuple[Unpack[TS], S]]": ...
+
+    @overload
+    def __and__[S](self, p: "Parser[I, S]") -> "Parser[I, tuple[R, S]]": ...
+
+    def __and__[S](self, p: "Parser[I, S]"):
+        def flatten(
+            t: tuple[Any, S],
+        ) -> tuple[Any, ...]:
+            left, right = t
+            if isinstance(left, tuple):
+                return (*left, right)
+            else:
+                return (left, right)
+
+        return self.pair(p).map(flatten)
+
+    def __lshift__[S](
+        self, fn: Callable[["Parser[I, R]"], "Parser[I, S]"]
+    ) -> "Parser[I, S]":
+        return fn(self)
 
     @classmethod
     def okay(cls, value: R) -> "Parser[I, R]":
@@ -17,14 +85,6 @@ class Parser[I, R]:
     @classmethod
     def fail(cls, error: ParseErr) -> "Parser[I, R]":
         return cls(lambda ctx: Result[I, R].fail(ctx, error, 0))
-
-    def define(self, p: "Parser[I, R]"):
-        self._fn = lambda ctx: p.run(ctx)
-
-    def run(self, ctx: Context[I]) -> Result[I, R]:
-        if self._fn is None:
-            raise RuntimeError("UnDefined Parser")
-        return self._fn(ctx)
 
     def bind[S](self, fn: Callable[[R], "Parser[I, S]"]) -> "Parser[I, S]":
         @Parser
@@ -47,141 +107,187 @@ class Parser[I, R]:
     def map[S](self, fn: Callable[[R], S]) -> "Parser[I, S]":
         @Parser
         def parse(ctx: Context[I]) -> Result[I, S]:
-            ret = C.run_parser(ctx)(self)
-            match ret.outcome:
-                case Okay(value=v):
-                    return Result[I, S].okay(ret.context, fn(v), ret.consumed)
-                case Fail(error=err):
-                    return Result[I, S].fail(ret.context, err, ret.consumed)
+            ret = self.run(ctx)
+            if isinstance(ret.outcome, Okay):
+                return Result(ret.context, Okay(fn(ret.outcome.value)), ret.consumed)
+            return Result(ret.context, ret.outcome, ret.consumed)
 
         return parse
 
-    def apply[S](
-        self: "Parser[I, Callable[[R], S]]", p: "Parser[I, R]"
-    ) -> "Parser[I, S]":
-        return C.fapply(self)(p)
+    def apply[S](self, pfn: "Parser[I, Callable[[R], S]]") -> "Parser[I, S]":
+        return pfn.bind(self.map)
 
-    # 解析器运算符
-    def __rshift__[S](self, fn: Callable[[R], "Parser[I, S]"]) -> "Parser[I, S]":
-        return self.bind(fn)
+    def alter(self, parser: "Parser[I, R]", backtrace: bool = True) -> "Parser[I, R]":
+        @Parser
+        def parse(ctx: Context[I]):
+            r1 = self.run(ctx)
+            if isinstance(r1.outcome, Okay):
+                return r1
+            ctx = r1.context.backtrack(r1.consumed, ctx.state)
+            r2 = parser.run(ctx)
+            if isinstance(r2.outcome, Okay):
+                return r2
+            ctx = r2.context.backtrack(r2.consumed, ctx.state)
+            children = [r1.outcome.error, r2.outcome.error]
+            return Result[I, R].fail(ctx, ParseErr(children), 0)
 
-    def __lshift__[S](
-        self, fn: Callable[["Parser[I, R]"], "Parser[I, S]"]
-    ) -> "Parser[I, S]":
-        """管道运算符，连续的将组合子应用在解析器上"""
-        return fn(self)
+        return parse
+    
+    def fast_alter(self, parser: "Parser[I, R]") -> "Parser[I, R]":
+        @Parser
+        def parse(ctx: Context[I]):
+            r1 = self.run(ctx)
+            if isinstance(r1.outcome, Okay):
+                return r1
+            return r1 if r1.consumed > 0 else parser.run(r1.context)
+        return parse
 
-    def __matmul__[S](self, fn: Callable[[R], S]) -> "Parser[I, S]":
-        return self.map(fn)
+    def pair[S](self, parser: "Parser[I, S]") -> "Parser[I, tuple[R, S]]":
+        return self.bind(lambda x: parser.map(lambda y: (x, y)))
 
-    def __truediv__[S](self, p: "Parser[I, S]") -> "Parser[I, R | S]":
-        return C.fast_otherwise(self)(p)
-
-    def __or__[S](self, p: "Parser[I, S]") -> "Parser[I, R | S]":
-        return C.otherwise(self)(p)
-
-    @overload
-    def __and__[S, *TS](
-        self: "Parser[I, tuple[Unpack[TS]]]", p: "Parser[I, S]"
-    ) -> "Parser[I, tuple[Unpack[TS], S]]": ...
-
-    @overload
-    def __and__[S](self, p: "Parser[I, S]") -> "Parser[I, tuple[R, S]]": ...
-
-    def __and__[S](self, p: "Parser[I, S]"):
-        return C.pair(self)(p).map(flatten)
-
-    # 链式调用接口，在combinator中实现
-    def alter(self, p: "Parser[I, R]") -> "Parser[I, R]":
-        return C.alter(self)(p)
-
-    def fast_alter(self, p: "Parser[I, R]") -> "Parser[I, R]":
-        return C.fast_alter(self)(p)
-
-    def pair[S](self, p: "Parser[I, S]") -> "Parser[I, tuple[R, S]]":
-        return C.pair(self)(p)
-
-    def otherwise[S](self, p: "Parser[I, S]") -> "Parser[I, R | S]":
-        return C.otherwise(self)(p)
+    def otherwise[S](self, parser: "Parser[I, S]") -> "Parser[I, R | S]":
+        p1 = self.as_type(type[R | S])
+        p2 = parser.as_type(type[R | S])
+        return cast(Parser[I, R | S], p1.alter(p2))
+    
+    def fast_otherwise[S](self, parser: "Parser[I, S]") -> "Parser[I, R | S]":
+        p1 = self.as_type(type[R | S])
+        p2 = parser.as_type(type[R | S])
+        return cast(Parser[I, R | S], p1.fast_alter(p2))
 
     def maybe(self) -> "Parser[I, R | None]":
-        return C.maybe(self)
+        return self.default(None)
 
-    def default[S](self, value: S) -> "Parser[I, R | S]":
-        return C.default(value)(self)
+    def default[U](self, value: U) -> "Parser[I, R | U]":
+        return self.otherwise(Parser[I, R | U].okay(value))
 
     def prefix(self, _prefix: "Parser[I, Any]") -> "Parser[I, R]":
-        return C.prefix(_prefix)(self)
-
+        return _prefix.map(false).apply(self)
+    
     def suffix(self, _suffix: "Parser[I, Any]") -> "Parser[I, R]":
-        return C.suffix(_suffix)(self)
+        return self.map(true).apply(_suffix)
 
     def between(
-        self, left: "Parser[I, Any]", right: "Parser[I, Any]"
+        self, _prefix: "Parser[I, Any]", _suffix: "Parser[I, Any]"
     ) -> "Parser[I, R]":
-        return C.between(left)(right)(self)
+        return self.prefix(_prefix).suffix(_suffix)
 
     def ltrim(self, ignores: set["Parser[I, Any]"]) -> "Parser[I, R]":
-        return C.ltrim(ignores)(self)
+        return self.prefix(sel(*ignores).many())
 
     def rtrim(self, ignores: set["Parser[I, Any]"]) -> "Parser[I, R]":
-        return C.rtrim(ignores)(self)
+        return self.suffix(sel(*ignores).many())
 
     def trim(self, ignores: set["Parser[I, Any]"]) -> "Parser[I, R]":
-        return C.trim(ignores)(self)
+        return self.ltrim(ignores).rtrim(ignores)
 
     def sep_by(self, sep: "Parser[I, Any]") -> "Parser[I, list[R]]":
-        return C.sep_by(sep)(self)
+        remains = self.prefix(sep).many()
+        return self.map(cons).apply(remains)
 
     def end_by(self, sep: "Parser[I, Any]") -> "Parser[I, list[R]]":
-        return C.end_by(sep)(self)
+        return self.suffix(sep).many()
 
     def many_till(self, end: "Parser[I, Any]") -> "Parser[I, list[R]]":
-        return C.many_till(end)(self)
+        return self.many().suffix(end)
 
     def repeat(self, n: int) -> "Parser[I, list[R]]":
-        return C.repeat(n)(self)
+        if n == 0:
+            return Parser[I, list[R]].okay([])
+        return self.map(cons).apply(self.repeat(n - 1))
 
     def where(self, fn: Callable[[R], bool]) -> "Parser[I, R]":
-        return C.where(fn)(self)
+        return self.bind(lambda v: Parser[I, R].okay(v) if fn(v) else Parser[I, R].fail(UnExpected(v)))
 
     def eq(self, value: R) -> "Parser[I, R]":
-        return C.eq(value)(self)
+        return self.where(lambda v: v == value).with_err(Expected(f"{value}"))
 
     def neq(self, value: R) -> "Parser[I, R]":
-        return C.neq(value)(self)
+        return self.where(lambda v: v != value).with_err(UnExpected(f"{value}"))
 
-    def range(self, ranges: set[R]) -> "Parser[I, R]":
-        return C.range(ranges)(self)
+    def range(self, ranges: Iterable[R]) -> "Parser[I, R]":
+        return self.where(lambda v: v in ranges)
 
     def some(self) -> "Parser[I, list[R]]":
-        return C.some(self)
+        return self.bind(lambda x: self.many().map(lambda xs: [x, *xs]))
 
     def many(self) -> "Parser[I, list[R]]":
-        return C.many(self)
+        return self.some().alter(Parser[I, list[R]].okay([]))
 
     def chainl1(
         self, op: "Parser[I, Callable[[R], Callable[[R], R]]]"
     ) -> "Parser[I, R]":
-        return C.chainl1(op)(self)
+        return self.bind(lambda x: self.chainl(op, x))
 
     def chainr1(
         self, op: "Parser[I, Callable[[R], Callable[[R], R]]]"
     ) -> "Parser[I, R]":
-        return C.chainr1(op)(self)
+        return self.bind(lambda x: self.chainr(op, x))
 
     def chainl(
         self, op: "Parser[I, Callable[[R], Callable[[R], R]]]", initial: R
     ) -> "Parser[I, R]":
-        return C.chainl(op)(initial)(self)
+        def rest(x: R) -> Parser[I, R]:
+            return op.bind(lambda f: self.map(lambda y: rest(f(x)(y)))).alter(
+                Parser[I, R].okay(initial)
+            )
+            # return op.map(lambda f: lambda y: f(x)(y)).apply(rest(x)).alter(
+            #     Parser[I, R].okay(initial)
+            # )
+
+        return self.bind(rest)
 
     def chainr(
         self, op: "Parser[I, Callable[[R], Callable[[R], R]]]", initial: R
     ) -> "Parser[I, R]":
-        return C.chainr(op)(initial)(self)
+        def rest(x: R) -> Parser[I, R]:
+            return op.bind(lambda f: scan.bind(lambda y: rest(f(x)(y)))).alter(
+                Parser[I, R].okay(initial)
+            )
+
+        scan = self.bind(rest)
+        return scan
 
     def as_type[S](self, tp: type[S]) -> "Parser[I, S]":
-        return C.as_type(tp)(self)
+        return cast(Parser[I, S], self)
 
-    def with_error(self, error: ParseErr) -> "Parser[I, R]":
-        return C.with_error(error)(self)
+    def with_err[S](self, err: ParseErr) -> "Parser[I, R]":
+        @Parser
+        def parse(ctx: Context[I]) -> Result[I, R]:
+            ret = self.run(ctx)
+            if isinstance(ret.outcome, Okay):
+                return ret
+            err.add(ret.outcome.error)
+            return Result[I, R].fail(
+                ctx, err, ret.consumed
+            )
+
+        return parse
+
+
+@Parser
+def item[I](ctx: Context[I]) -> Result[I, I]:
+    if ctx.stream.eos():
+        return Result[I, I].fail(ctx, EOSErr(), 0)
+    return Result[I, I].okay(
+        ctx.update(ctx.stream.peek().pop()), ctx.stream.read().pop(), 1
+    )
+
+
+token = item.eq
+
+
+def tokens[I](values: Iterable[I]) -> Parser[I, list[I]]:
+    return seq(*map(token, values))
+
+
+def sel[I, R](*parsers: Parser[I, R]) -> Parser[I, R]:
+    return reduce(Parser[I, R].alter, parsers)
+
+
+def seq[I, R](*parsers: Parser[I, R]) -> Parser[I, list[R]]:
+    return reduce(
+        lambda ps, p: ps.pair(p).map(lambda x: [*x[0], x[1]]),
+        parsers,
+        Parser[I, list[R]].okay([]),
+    )

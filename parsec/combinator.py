@@ -1,247 +1,168 @@
 from functools import reduce
-from typing import Iterable, overload, Any, Callable, cast
-import typing
+from typing import Iterable, overload, Any, Callable
 
-from parsec.utils import const, curry, make_pair, true, false
-from parsec.context import Context, Result, Okay, Fail
-from parsec.err import ParseErr, UnExpected, Expected, EOSError
-
-if typing.TYPE_CHECKING:
-    from parsec.parser import Parser, Result
+from parsec.utils import curry
+from parsec.parser import Parser
 
 
 @curry
-def run_parser[I, R](ctx: Context[I], p: Parser[I, R]) -> Result[I, R]:
-    return p.run(ctx)
-
-
-@curry
-def fbind[I, R, S](
-    fn: Callable[[R], "Parser[I, S]"], p: Parser[I, R]
-) -> "Parser[I, S]":
+def bind[I, R, S](fn: Callable[[R], Parser[I, S]], p: Parser[I, R]) -> Parser[I, S]:
     return p.bind(fn)
 
 
 @curry
-def fmap[I, R, S](fn: Callable[[R], S], p: Parser[I, R]) -> "Parser[I, S]":
+def fmap[I, R, S](fn: Callable[[R], S], p: Parser[I, R]) -> Parser[I, S]:
     return p.map(fn)
 
 
 @curry
-def fapply[I, R, S](
-    pfn: "Parser[I, Callable[[R], S]]", p: Parser[I, R]
-) -> "Parser[I, S]":
-    return pfn.bind(p.map)
+def apply[I, R, S](pfn: Parser[I, Callable[[R], S]], p: Parser[I, R]) -> Parser[I, S]:
+    return p.apply(pfn)
 
 
 @curry
-def alter[I, R](p1: "Parser[I, R]", p2: "Parser[I, R]") -> "Parser[I, R]":
-    @Parser
-    def parse(ctx: Context[I]) -> Result[I, R]:
-        r1 = p1.run(ctx)
-        match r1.outcome:
-            case Okay():
-                return r1
-            case Fail():
-                ctx = r1.context.backtrack(r1.consumed, ctx.state)
-                r2 = p2.run(ctx)
-                match r2.outcome:
-                    case Okay():
-                        return r2
-                    case Fail():
-                        ctx = r2.context.backtrack(r2.consumed, ctx.state)
-                        children = [r1.outcome.error, r2.outcome.error]
-                        return Result[I, R].fail(ctx, ParseErr(children), 0)
-
-    return parse
-
-
-@curry
-def fast_alter[I, R](p1: Parser[I, R], p2: Parser[I, R]) -> Parser[I, R]:
-    @Parser
-    def parse(ctx: Context[I]) -> Result[I, R]:
-        ret = p1.run(ctx)
-        match ret.outcome:
-            case Okay():
-                return ret
-            case Fail():
-                return p2.run(ctx) if ret.consumed == 0 else ret
-
-    return parse
+def alter[I, R](p1: Parser[I, R], p2: Parser[I, R]) -> Parser[I, R]:
+    return p1.alter(p2)
 
 
 @curry
 def pair[I, R, S](p1: Parser[I, R], p2: Parser[I, S]) -> Parser[I, tuple[R, S]]:
-    return fapply(p1.map(make_pair))(p2)
+    return p1.pair(p2)
 
 
 @curry
 def otherwise[I, R, S](p1: Parser[I, R], p2: Parser[I, S]) -> Parser[I, R | S]:
-    _p1 = p1.as_type(type[R | S])
-    _p2 = p2.as_type(type[R | S])
-    return cast(Parser[I, R | S], alter(_p1)(_p2))
-
-
-@curry
-def fast_otherwise[I, R, S](p1: Parser[I, R], p2: Parser[I, S]) -> Parser[I, R | S]:
-    _p1 = p1.as_type(type[R | S])
-    _p2 = p2.as_type(type[R | S])
-    return cast(Parser[I, R | S], fast_alter(_p1)(_p2))
+    return p1.otherwise(p2)
 
 
 @curry
 def maybe[I, R](p: Parser[I, R]) -> Parser[I, R | None]:
-    return default(None)(p)
+    return p.maybe()
 
 
 @curry
 def default[I, R, S](value: S, p: Parser[I, R]) -> Parser[I, R | S]:
-    return otherwise(p)(Parser[I, R | S].okay(value))
+    return p.default(value)
 
 
 @curry
 def prefix[I, R](_prefix: "Parser[I, Any]", p: Parser[I, R]) -> "Parser[I, R]":
-    return fapply(_prefix.map(false))(p)
+    return p.prefix(_prefix)
 
 
 @curry
 def suffix[I, R](_suffix: "Parser[I, Any]", p: Parser[I, R]) -> "Parser[I, R]":
-    return p.map(true).apply(_suffix)
+    return p.suffix(_suffix)
 
 
 @curry
-def between[I, R](
-    _prefix: "Parser[I, Any]", _suffix: "Parser[I, Any]", p: Parser[I, R]
+def between[I, R, S](
+    left: "Parser[I, Any]", right: "Parser[I, Any]", p: Parser[I, R]
 ) -> "Parser[I, R]":
-    return suffix(_suffix)(prefix(_prefix)(p))
+    return p.between(left, right)
 
 
 @curry
-def ltrim[I, R](ignores: set["Parser[I, Any]"], p: Parser[I, R]) -> "Parser[I, R]":
-    return prefix(many(sel(*ignores)))(p)
+def ltrim[I, R](ignores: Iterable["Parser[I, Any]"], p: Parser[I, R]) -> "Parser[I, R]":
+    return p.ltrim(ignores)
 
 
 @curry
-def rtrim[I, R](ignores: set["Parser[I, Any]"], p: Parser[I, R]) -> "Parser[I, R]":
-    return suffix(many(sel(*ignores)))(p)
+def rtrim[I, R](ignores: Iterable["Parser[I, Any]"], p: Parser[I, R]) -> "Parser[I, R]":
+    return p.rtrim(ignores)
 
 
 @curry
-def trim[I, R](ignores: set["Parser[I, Any]"], p: Parser[I, R]) -> "Parser[I, R]":
-    return rtrim(ignores)(ltrim(ignores)(p))
+def trim[I, R](ignores: Iterable["Parser[I, Any]"], p: Parser[I, R]) -> "Parser[I, R]":
+    return p.trim(ignores)
 
 
 @curry
 def sep_by[I, R](sep: "Parser[I, Any]", p: Parser[I, R]) -> "Parser[I, list[R]]":
-    return p.bind(lambda x: many(sep.bind(const(p))).map(lambda xs: [x, *xs]))
+    return p.sep_by(sep)
 
 
 @curry
 def end_by[I, R](sep: "Parser[I, Any]", p: Parser[I, R]) -> "Parser[I, list[R]]":
-    return some(suffix(sep)(p))
+    return p.end_by(sep)
 
 
 @curry
 def many_till[I, R](end: "Parser[I, Any]", p: Parser[I, R]) -> "Parser[I, list[R]]":
-    return suffix(end)(many(p))
+    return p.many_till(end)
 
 
 @curry
 def repeat[I, R](n: int, p: Parser[I, R]) -> "Parser[I, list[R]]":
-    if n == 0:
-        return Parser[I, list[R]].okay([])
-    return p.bind(lambda x: p.repeat(n - 1).map(lambda xs: [x, *xs]))
+    return p.repeat(n)
 
 
 @curry
 def where[I, R](fn: Callable[[R], bool], p: Parser[I, R]) -> "Parser[I, R]":
-    return p.bind(
-        lambda x: Parser[I, R].okay(x) if fn(x) else Parser[I, R].fail(UnExpected(x))
-    )
+    return p.where(fn)
 
 
 @curry
 def eq[I, R](value: R, p: Parser[I, R]) -> "Parser[I, R]":
-    return with_error(Expected(f"'{value}'"))(where(lambda v: v == value)(p))
+    return p.eq(value)
 
 
 @curry
 def neq[I, R](value: R, p: Parser[I, R]) -> "Parser[I, R]":
-    return with_error(UnExpected(f"'{value}'"))(where(lambda v: v != value)(p))
+    return p.neq(value)
 
 
 @curry
-def range[I, R](ranges: set[R], p: Parser[I, R]) -> "Parser[I, R]":
-    return where(lambda v: v in ranges)(p)
+def range[I, R](ranges: Iterable[R], p: Parser[I, R]) -> "Parser[I, R]":
+    return p.range(ranges)
 
 
 @curry
 def some[I, R](p: Parser[I, R]) -> "Parser[I, list[R]]":
-    return p.bind(lambda x: many(p).map(lambda xs: [x, *xs]))
+    return p.some()
 
 
 @curry
 def many[I, R](p: Parser[I, R]) -> "Parser[I, list[R]]":
-    return alter(some(p))(Parser[I, list[R]].okay([]))
+    return p.many()
 
 
 @curry
 def chainl1[I, R](
     op: "Parser[I, Callable[[R], Callable[[R], R]]]", p: Parser[I, R]
 ) -> "Parser[I, R]":
-    return p.bind(lambda x: chainl(op)(x)(p))
+    return p.chainl1(op)
 
 
 @curry
 def chainr1[I, R, S](
     op: "Parser[I, Callable[[R], Callable[[R], R]]]", p: Parser[I, R]
 ) -> "Parser[I, R]":
-    return p.bind(lambda x: chainr(op)(x)(p))
+    return p.chainr1(op)
 
 
 @curry
 def chainl[I, R](
     op: "Parser[I, Callable[[R], Callable[[R], R]]]", initial: R, p: Parser[I, R]
 ) -> "Parser[I, R]":
-    def rest(x: R) -> Parser[I, R]:
-        return alter(op.bind(lambda f: p.bind(lambda y: rest(f(x)(y)))))(
-            Parser[I, R].okay(initial)
-        )
-
-    return p.bind(rest)
+    return p.chainl(op, initial)
 
 
 @curry
 def chainr[I, R](
     op: "Parser[I, Callable[[R], Callable[[R], R]]]", initial: R, p: Parser[I, R]
 ) -> "Parser[I, R]":
-    def rest(x: R) -> Parser[I, R]:
-        return alter(op.bind(lambda f: scan.bind(lambda y: rest(f(x)(y)))))(
-            Parser[I, R].okay(initial)
-        )
-
-    scan = p.bind(rest)
-    return scan
+    return p.chainr(op, initial)
 
 
 @curry
 def as_type[I, R, S](tp: type[S], p: Parser[I, R]) -> "Parser[I, S]":
-    return cast(Parser[I, S], p)
+    return p.as_type(tp)
 
 
 @curry
-def with_error[I, R](error: ParseErr, p: Parser[I, R]) -> "Parser[I, R]":
-    @Parser
-    def parse(ctx: Context[I]) -> Result[I, R]:
-        ret = p.run(ctx)
-        match ret.outcome:
-            case Okay():
-                return ret
-            case Fail(error=err):
-                error.children.append(err)
-                return Result[I, R].fail(ret.context, err, ret.consumed)
-
-    return parse
+def expected[I, R, S](value: S, p: Parser[I, R]) -> "Parser[I, R]":
+    return p.expected(value)
 
 
 @overload
@@ -335,7 +256,7 @@ def sel[I](
     plist: list[Parser[I, Any]] = list(
         filter(None, (_p1, _p2, _p3, _p4, _p5, _p6, _p7, _p8, _p9, *_ps))
     )
-    return reduce(lambda x, y: otherwise(x)(y), plist)
+    return reduce(lambda x, y: x | y, plist)
 
 
 @overload
@@ -431,20 +352,4 @@ def seq[I](
     plist: list[Parser[I, Any]] = list(
         filter(None, (_p1, _p2, _p3, _p4, _p5, _p6, _p7, _p8, _p9, *_ps))
     )
-    return reduce(lambda x, y: pair(x)(y), plist)
-
-
-@Parser
-def item[I](ctx: Context[I]) -> Result[I, I]:
-    if ctx.stream.eos():
-        return Result[I, I].fail(ctx, EOSError(), 0)
-    return Result[I, I].okay(
-        ctx.update(ctx.stream.peek().pop()), ctx.stream.read().pop(), 1
-    )
-
-
-token = item.eq
-
-
-def tokens[I](values: Iterable[I]) -> Parser[I, tuple[I, ...]]:
-    return seq(*[token(v) for v in values])
+    return reduce(lambda x, y: x & y, plist)
