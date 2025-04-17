@@ -1,31 +1,32 @@
 from typing import Optional
 
 
-class ParseErr(Exception): ...
+class ParseErr:
+    def __init__(self, children: Optional[list["ParseErr"]] = None):
+        self.children = children or []
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}({'' if hasattr(self, 'value') else f'value={getattr(self, "value")}'}, children={self.children})>"
 
 
 class Expected[R](ParseErr):
-    def __init__(self, value: R, children: Optional[list[ParseErr]] = None):
+    def __init__(self, value: R):
+        super().__init__()
         self.value = value
-        self.children = children or []
 
 
 class UnExpected[R](ParseErr):
-    def __init__(self, value: R, expected: Optional[ParseErr] = None):
+    def __init__(self, value: R):
+        super().__init__()
         self.value = value
-        self.expected = expected
 
 
 class InvalidValue[R](ParseErr):
-    def __init__(self, value: R, expected: Optional[ParseErr] = None):
+    def __init__(self, value: R):
+        super().__init__()
         self.value = value
-        self.expected = expected
 
 
-class EOS(ParseErr):
-    def __init__(self) -> None: ...
-
-
-class AlterErr(ParseErr):
-    def __init__(self, children: list[ParseErr]):
-        self.children = children
+class EOSError(ParseErr):
+    def __init__(self) -> None:
+        super().__init__()

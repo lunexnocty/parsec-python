@@ -61,6 +61,14 @@ def snd[T1, T2, *Ts](_tuples: tuple[T1, T2, *Ts]):
     return _tuples[1]
 
 
+def flatten(t: tuple[Any, Any]) -> tuple[Any, ...]:
+    match t:
+        case (tuple(left), right):
+            return (*left, right)
+        case (left, right):
+            return (left, right)
+
+
 @overload
 def curry[T1, R](fn: Callable[[T1], R]) -> Callable[[T1], R]: ...
 
@@ -166,3 +174,18 @@ def curry(fn: Callable[..., Any]) -> Callable[..., Any]:
 
     n = fn.__code__.co_argcount
     return make_curried(n)
+
+
+@curry
+def make_pair[A, B](a: A, b: B) -> tuple[A, B]:
+    return (a, b)
+
+
+@curry
+def false[A](_a: Any, _b: A) -> A:
+    return _b
+
+
+@curry
+def true[A](_a: A, _b: Any) -> A:
+    return _a
