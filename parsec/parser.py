@@ -68,8 +68,7 @@ class Parser[I, R]:
             left, right = t
             if isinstance(left, tuple):
                 return (*left, right)
-            else:
-                return (left, right)
+            return (left, right)
 
         return self.pair(p).map(flatten)
 
@@ -90,17 +89,11 @@ class Parser[I, R]:
         @Parser
         def parse(ctx: Context[I]) -> Result[I, S]:
             r1 = self.run(ctx)
-            match r1.outcome:
-                case Okay(value=v1):
-                    r2 = fn(v1).run(r1.context)
-                    consumed = r1.consumed + r2.consumed
-                    match r2.outcome:
-                        case Okay(value=v2):
-                            return Result[I, S].okay(r2.context, v2, consumed)
-                        case Fail(error=err):
-                            return Result[I, S].fail(r2.context, err, consumed)
-                case Fail(error=err):
-                    return Result[I, S].fail(r1.context, err, r1.consumed)
+            if isinstance(r1.outcome, Fail):
+                return r1
+            r2 = fn(r1.outcome.value).run(r1.context)
+            r2.consumed += r1.consumed
+            return r2
 
         return parse
 
@@ -108,16 +101,16 @@ class Parser[I, R]:
         @Parser
         def parse(ctx: Context[I]) -> Result[I, S]:
             ret = self.run(ctx)
-            if isinstance(ret.outcome, Okay):
-                return Result(ret.context, Okay(fn(ret.outcome.value)), ret.consumed)
-            return Result(ret.context, ret.outcome, ret.consumed)
+            if isinstance(ret.outcome, Fail):
+                return ret
+            return Result[I, S].okay(ret.context, fn(ret.outcome.value), ret.consumed)
 
         return parse
 
     def apply[S](self, pfn: "Parser[I, Callable[[R], S]]") -> "Parser[I, S]":
         return pfn.bind(self.map)
 
-    def alter(self, parser: "Parser[I, R]", backtrace: bool = True) -> "Parser[I, R]":
+    def alter(self, parser: "Parser[I, R]") -> "Parser[I, R]":
         @Parser
         def parse(ctx: Context[I]):
             r1 = self.run(ctx)
@@ -143,7 +136,7 @@ class Parser[I, R]:
         return parse
 
     def pair[S](self, parser: "Parser[I, S]") -> "Parser[I, tuple[R, S]]":
-        return self.bind(lambda x: parser.map(lambda y: (x, y)))
+        return self.map(lambda x: lambda y: (x, y)).apply(parser)
 
     def otherwise[S](self, parser: "Parser[I, S]") -> "Parser[I, R | S]":
         p1 = self.as_type(type[R | S])
@@ -231,9 +224,6 @@ class Parser[I, R]:
             return op.bind(lambda f: self.map(lambda y: rest(f(x)(y)))).alter(
                 Parser[I, R].okay(initial)
             )
-            # return op.map(lambda f: lambda y: f(x)(y)).apply(rest(x)).alter(
-            #     Parser[I, R].okay(initial)
-            # )
 
         return self.bind(rest)
 

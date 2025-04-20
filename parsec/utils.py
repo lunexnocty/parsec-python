@@ -58,7 +58,7 @@ def fst[T, *Ts](_tuples: tuple[T, *Ts]):
 
 
 def snd[T1, T2, *Ts](_tuples: tuple[T1, T2, *Ts]):
-    return _tuples[1]
+    return head(tail(_tuples))
 
 
 @overload

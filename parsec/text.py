@@ -18,7 +18,9 @@ class TextStream(IStream[str]):
         return list(self.data[self.offset : self.offset + n]).copy()
 
     def seek(self, offset: int) -> IStream[str]:
-        return TextStream(self.data, self.offset + offset)
+        # return TextStream(self.data, self.offset + offset)
+        self.offset += offset
+        return self
 
     def tell(self) -> int:
         return self.offset
@@ -34,11 +36,15 @@ class TextState(IState[str]):
         self.column = column
 
     def update(self, item: str):
+
         lines = item.count("\n")
         return TextState(
             line=self.line + lines,
             column=item.rfind("\n") + 1 if lines else self.column + len(item),
         )
+        # self.line += lines
+        # self.column = item.rfind("\n") + 1 if lines else self.column + len(item)
+        # return self
 
     def format(self):
         if self.file is None:
