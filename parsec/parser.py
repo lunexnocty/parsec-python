@@ -4,7 +4,7 @@ from functools import reduce
 
 from parsec.context import Context
 from parsec.err import ParseErr, Expected, UnExpected, EOSErr
-from parsec.utils import true, false, fst, snd, cons, identity, const
+from parsec.utils import true, false, cons
 
 
 @dataclass
@@ -36,8 +36,8 @@ class Parser[I, R]:
     def __init__(self, fn: Callable[[Context[I]], Result[I, R]] | None = None):
         self._fn = fn
 
-    def define(self, parser: "Parser[I, R]"):
-        self._fn = lambda ctx: parser.run(ctx)
+    def define(self, p: "Parser[I, R]"):
+        self._fn = lambda ctx: p.run(ctx)
 
     def run(self, ctx: Context[I]) -> Result[I, R]:
         if self._fn is None:
@@ -49,7 +49,7 @@ class Parser[I, R]:
 
     def __or__[S](self, p: "Parser[I, S]") -> "Parser[I, R | S]":
         return self.otherwise(p)
-    
+
     def __truediv__[S](self, p: "Parser[I, S]") -> "Parser[I, R | S]":
         return self.fast_otherwise(p)
 
@@ -61,16 +61,8 @@ class Parser[I, R]:
     @overload
     def __and__[S](self, p: "Parser[I, S]") -> "Parser[I, tuple[R, S]]": ...
 
-    def __and__[S](self, p: "Parser[I, S]"):
-        def flatten(
-            t: tuple[Any, S],
-        ) -> tuple[Any, ...]:
-            left, right = t
-            if isinstance(left, tuple):
-                return (*left, right)
-            return (left, right)
-
-        return self.pair(p).map(flatten)
+    def __and__(self, p: Any):
+        return self.pair(p).map(lambda t: (*t[0], t) if isinstance(t[0], tuple) else t)
 
     def __lshift__[S](
         self, fn: Callable[["Parser[I, R]"], "Parser[I, S]"]
@@ -89,35 +81,41 @@ class Parser[I, R]:
         @Parser
         def parse(ctx: Context[I]) -> Result[I, S]:
             r1 = self.run(ctx)
-            if isinstance(r1.outcome, Fail):
-                return r1
-            r2 = fn(r1.outcome.value).run(r1.context)
-            r2.consumed += r1.consumed
-            return r2
+            match r1.outcome:
+                case Okay(value=v):
+                    r2 = fn(v).run(r1.context)
+                    r2.consumed += r1.consumed
+                    return r2
+                case Fail(error=e):
+                    return Result[I, S].fail(r1.context, e, r1.consumed)
 
         return parse
 
     def map[S](self, fn: Callable[[R], S]) -> "Parser[I, S]":
         @Parser
         def parse(ctx: Context[I]) -> Result[I, S]:
-            ret = self.run(ctx)
-            if isinstance(ret.outcome, Fail):
-                return ret
-            return Result[I, S].okay(ret.context, fn(ret.outcome.value), ret.consumed)
+            r = self.run(ctx)
+            match r.outcome:
+                case Okay(value=v):
+                    return Result[I, S].okay(r.context, fn(v), r.consumed)
+                case Fail(error=e):
+                    return Result[I, S].fail(r.context, e, r.consumed)
 
         return parse
 
-    def apply[S](self, pfn: "Parser[I, Callable[[R], S]]") -> "Parser[I, S]":
-        return pfn.bind(self.map)
+    def apply[S](
+        self: "Parser[I, Callable[[R], S]]", p: "Parser[I, R]"
+    ) -> "Parser[I, S]":
+        return self.bind(p.map)
 
-    def alter(self, parser: "Parser[I, R]") -> "Parser[I, R]":
+    def alter(self, p: "Parser[I, R]") -> "Parser[I, R]":
         @Parser
         def parse(ctx: Context[I]):
             r1 = self.run(ctx)
             if isinstance(r1.outcome, Okay):
                 return r1
             ctx = r1.context.backtrack(r1.consumed, ctx.state)
-            r2 = parser.run(ctx)
+            r2 = p.run(ctx)
             if isinstance(r2.outcome, Okay):
                 return r2
             ctx = r2.context.backtrack(r2.consumed, ctx.state)
@@ -125,27 +123,28 @@ class Parser[I, R]:
             return Result[I, R].fail(ctx, ParseErr(children), 0)
 
         return parse
-    
-    def fast_alter(self, parser: "Parser[I, R]") -> "Parser[I, R]":
+
+    def fast_alter(self, p: "Parser[I, R]") -> "Parser[I, R]":
         @Parser
         def parse(ctx: Context[I]):
-            r1 = self.run(ctx)
-            if isinstance(r1.outcome, Okay):
-                return r1
-            return r1 if r1.consumed > 0 else parser.run(r1.context)
+            r = self.run(ctx)
+            if r.consumed > 0 or isinstance(r.outcome, Okay):
+                return r
+            return p.run(r.context)
+
         return parse
 
-    def pair[S](self, parser: "Parser[I, S]") -> "Parser[I, tuple[R, S]]":
-        return self.map(lambda x: lambda y: (x, y)).apply(parser)
+    def pair[S](self, p: "Parser[I, S]") -> "Parser[I, tuple[R, S]]":
+        return self.map(lambda x: lambda y: (x, y)).apply(p)
 
-    def otherwise[S](self, parser: "Parser[I, S]") -> "Parser[I, R | S]":
+    def otherwise[S](self, p: "Parser[I, S]") -> "Parser[I, R | S]":
         p1 = self.as_type(type[R | S])
-        p2 = parser.as_type(type[R | S])
+        p2 = p.as_type(type[R | S])
         return cast(Parser[I, R | S], p1.alter(p2))
-    
-    def fast_otherwise[S](self, parser: "Parser[I, S]") -> "Parser[I, R | S]":
+
+    def fast_otherwise[S](self, p: "Parser[I, S]") -> "Parser[I, R | S]":
         p1 = self.as_type(type[R | S])
-        p2 = parser.as_type(type[R | S])
+        p2 = p.as_type(type[R | S])
         return cast(Parser[I, R | S], p1.fast_alter(p2))
 
     def maybe(self) -> "Parser[I, R | None]":
@@ -156,7 +155,7 @@ class Parser[I, R]:
 
     def prefix(self, _prefix: "Parser[I, Any]") -> "Parser[I, R]":
         return _prefix.map(false).apply(self)
-    
+
     def suffix(self, _suffix: "Parser[I, Any]") -> "Parser[I, R]":
         return self.map(true).apply(_suffix)
 
@@ -166,10 +165,12 @@ class Parser[I, R]:
         return self.prefix(_prefix).suffix(_suffix)
 
     def ltrim(self, ignores: set["Parser[I, Any]"]) -> "Parser[I, R]":
-        return self.prefix(sel(*ignores).many())
+        p_ignotrs = reduce(lambda x, y: x.alter(y), ignores)
+        return self.prefix(p_ignotrs.many())
 
     def rtrim(self, ignores: set["Parser[I, Any]"]) -> "Parser[I, R]":
-        return self.suffix(sel(*ignores).many())
+        p_ignotrs = reduce(lambda x, y: x.alter(y), ignores)
+        return self.suffix(p_ignotrs.many())
 
     def trim(self, ignores: set["Parser[I, Any]"]) -> "Parser[I, R]":
         return self.ltrim(ignores).rtrim(ignores)
@@ -187,10 +188,14 @@ class Parser[I, R]:
     def repeat(self, n: int) -> "Parser[I, list[R]]":
         if n == 0:
             return Parser[I, list[R]].okay([])
-        return self.map(cons).apply(self.repeat(n - 1))
+        return self.repeat(n - 1).apply(self.map(cons))
 
     def where(self, fn: Callable[[R], bool]) -> "Parser[I, R]":
-        return self.bind(lambda v: Parser[I, R].okay(v) if fn(v) else Parser[I, R].fail(UnExpected(v)))
+        return self.bind(
+            lambda v: Parser[I, R].okay(v)
+            if fn(v)
+            else Parser[I, R].fail(UnExpected(v))
+        )
 
     def eq(self, value: R) -> "Parser[I, R]":
         return self.where(lambda v: v == value).with_err(Expected(f"{value}"))
@@ -248,9 +253,7 @@ class Parser[I, R]:
             if isinstance(ret.outcome, Okay):
                 return ret
             err.add(ret.outcome.error)
-            return Result[I, R].fail(
-                ctx, err, ret.consumed
-            )
+            return Result[I, R].fail(ctx, err, ret.consumed)
 
         return parse
 
@@ -267,17 +270,10 @@ def item[I](ctx: Context[I]) -> Result[I, I]:
 token = item.eq
 
 
-def tokens[I](values: Iterable[I]) -> Parser[I, list[I]]:
-    return seq(*map(token, values))
-
-
-def sel[I, R](*parsers: Parser[I, R]) -> Parser[I, R]:
-    return reduce(Parser[I, R].alter, parsers)
-
-
-def seq[I, R](*parsers: Parser[I, R]) -> Parser[I, list[R]]:
+def tokens[I](values: Iterable[I]):
+    ps = [token(v) for v in values]
     return reduce(
-        lambda ps, p: ps.pair(p).map(lambda x: [*x[0], x[1]]),
-        parsers,
-        Parser[I, list[R]].okay([]),
+        lambda p1, p2: p1.pair(p2).map(lambda x: [*x[0], x[1]]),
+        ps,
+        Parser[I, list[I]].okay([]),
     )

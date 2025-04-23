@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 class IState[I](ABC):
     @abstractmethod
-    def update(self, item: I) -> "IState[I]":
+    def update(self, value: I) -> "IState[I]":
         raise NotImplementedError
 
     @abstractmethod
@@ -30,6 +30,10 @@ class IStream[I](ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def move(self, offset: int) -> "IStream[I]":
+        raise NotImplementedError
+
+    @abstractmethod
     def eos(self) -> bool:
         raise NotImplementedError
 
@@ -40,7 +44,7 @@ class Context[I]:
     state: IState[I]
 
     def backtrack(self, consumed: int, state: IState[I]):
-        return Context(self.stream.seek(-consumed), state)
+        return Context(self.stream.move(-consumed), state)
 
     def update(self, value: I):
         return Context(self.stream, self.state.update(value))

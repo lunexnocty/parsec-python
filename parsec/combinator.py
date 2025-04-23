@@ -17,7 +17,7 @@ def fmap[I, R, S](fn: Callable[[R], S], p: Parser[I, R]) -> Parser[I, S]:
 
 @curry
 def apply[I, R, S](pfn: Parser[I, Callable[[R], S]], p: Parser[I, R]) -> Parser[I, S]:
-    return p.apply(pfn)
+    return pfn.apply(p)
 
 
 @curry
@@ -46,123 +46,123 @@ def default[I, R, S](value: S, p: Parser[I, R]) -> Parser[I, R | S]:
 
 
 @curry
-def prefix[I, R](_prefix: "Parser[I, Any]", p: Parser[I, R]) -> "Parser[I, R]":
+def prefix[I, R](_prefix: Parser[I, Any], p: Parser[I, R]) -> Parser[I, R]:
     return p.prefix(_prefix)
 
 
 @curry
-def suffix[I, R](_suffix: "Parser[I, Any]", p: Parser[I, R]) -> "Parser[I, R]":
+def suffix[I, R](_suffix: Parser[I, Any], p: Parser[I, R]) -> Parser[I, R]:
     return p.suffix(_suffix)
 
 
 @curry
 def between[I, R, S](
-    left: "Parser[I, Any]", right: "Parser[I, Any]", p: Parser[I, R]
-) -> "Parser[I, R]":
+    left: Parser[I, Any], right: Parser[I, Any], p: Parser[I, R]
+) -> Parser[I, R]:
     return p.between(left, right)
 
 
 @curry
-def ltrim[I, R](ignores: Iterable["Parser[I, Any]"], p: Parser[I, R]) -> "Parser[I, R]":
+def ltrim[I, R](ignores: Iterable[Parser[I, Any]], p: Parser[I, R]) -> Parser[I, R]:
     return p.ltrim(ignores)
 
 
 @curry
-def rtrim[I, R](ignores: Iterable["Parser[I, Any]"], p: Parser[I, R]) -> "Parser[I, R]":
+def rtrim[I, R](ignores: Iterable[Parser[I, Any]], p: Parser[I, R]) -> Parser[I, R]:
     return p.rtrim(ignores)
 
 
 @curry
-def trim[I, R](ignores: Iterable["Parser[I, Any]"], p: Parser[I, R]) -> "Parser[I, R]":
+def trim[I, R](ignores: Iterable[Parser[I, Any]], p: Parser[I, R]) -> Parser[I, R]:
     return p.trim(ignores)
 
 
 @curry
-def sep_by[I, R](sep: "Parser[I, Any]", p: Parser[I, R]) -> "Parser[I, list[R]]":
+def sep_by[I, R](sep: Parser[I, Any], p: Parser[I, R]) -> Parser[I, list[R]]:
     return p.sep_by(sep)
 
 
 @curry
-def end_by[I, R](sep: "Parser[I, Any]", p: Parser[I, R]) -> "Parser[I, list[R]]":
+def end_by[I, R](sep: Parser[I, Any], p: Parser[I, R]) -> Parser[I, list[R]]:
     return p.end_by(sep)
 
 
 @curry
-def many_till[I, R](end: "Parser[I, Any]", p: Parser[I, R]) -> "Parser[I, list[R]]":
+def many_till[I, R](end: Parser[I, Any], p: Parser[I, R]) -> Parser[I, list[R]]:
     return p.many_till(end)
 
 
 @curry
-def repeat[I, R](n: int, p: Parser[I, R]) -> "Parser[I, list[R]]":
+def repeat[I, R](n: int, p: Parser[I, R]) -> Parser[I, list[R]]:
     return p.repeat(n)
 
 
 @curry
-def where[I, R](fn: Callable[[R], bool], p: Parser[I, R]) -> "Parser[I, R]":
+def where[I, R](fn: Callable[[R], bool], p: Parser[I, R]) -> Parser[I, R]:
     return p.where(fn)
 
 
 @curry
-def eq[I, R](value: R, p: Parser[I, R]) -> "Parser[I, R]":
+def eq[I, R](value: R, p: Parser[I, R]) -> Parser[I, R]:
     return p.eq(value)
 
 
 @curry
-def neq[I, R](value: R, p: Parser[I, R]) -> "Parser[I, R]":
+def neq[I, R](value: R, p: Parser[I, R]) -> Parser[I, R]:
     return p.neq(value)
 
 
 @curry
-def range[I, R](ranges: Iterable[R], p: Parser[I, R]) -> "Parser[I, R]":
+def range[I, R](ranges: Iterable[R], p: Parser[I, R]) -> Parser[I, R]:
     return p.range(ranges)
 
 
 @curry
-def some[I, R](p: Parser[I, R]) -> "Parser[I, list[R]]":
+def some[I, R](p: Parser[I, R]) -> Parser[I, list[R]]:
     return p.some()
 
 
 @curry
-def many[I, R](p: Parser[I, R]) -> "Parser[I, list[R]]":
+def many[I, R](p: Parser[I, R]) -> Parser[I, list[R]]:
     return p.many()
 
 
 @curry
 def chainl1[I, R](
-    op: "Parser[I, Callable[[R], Callable[[R], R]]]", p: Parser[I, R]
-) -> "Parser[I, R]":
+    op: Parser[I, Callable[[R], Callable[[R], R]]], p: Parser[I, R]
+) -> Parser[I, R]:
     return p.chainl1(op)
 
 
 @curry
 def chainr1[I, R, S](
-    op: "Parser[I, Callable[[R], Callable[[R], R]]]", p: Parser[I, R]
-) -> "Parser[I, R]":
+    op: Parser[I, Callable[[R], Callable[[R], R]]], p: Parser[I, R]
+) -> Parser[I, R]:
     return p.chainr1(op)
 
 
 @curry
 def chainl[I, R](
-    op: "Parser[I, Callable[[R], Callable[[R], R]]]", initial: R, p: Parser[I, R]
-) -> "Parser[I, R]":
+    op: Parser[I, Callable[[R], Callable[[R], R]]], initial: R, p: Parser[I, R]
+) -> Parser[I, R]:
     return p.chainl(op, initial)
 
 
 @curry
 def chainr[I, R](
-    op: "Parser[I, Callable[[R], Callable[[R], R]]]", initial: R, p: Parser[I, R]
-) -> "Parser[I, R]":
+    op: Parser[I, Callable[[R], Callable[[R], R]]], initial: R, p: Parser[I, R]
+) -> Parser[I, R]:
     return p.chainr(op, initial)
 
 
 @curry
-def as_type[I, R, S](tp: type[S], p: Parser[I, R]) -> "Parser[I, S]":
+def as_type[I, R, S](tp: type[S], p: Parser[I, R]) -> Parser[I, S]:
     return p.as_type(tp)
 
 
 @curry
-def expected[I, R, S](value: S, p: Parser[I, R]) -> "Parser[I, R]":
-    return p.expected(value)
+def with_err[I, R, S](value: S, p: Parser[I, R]) -> Parser[I, R]:
+    return p.with_err(value)
 
 
 @overload
