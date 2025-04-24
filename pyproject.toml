@@ -8,5 +8,7 @@ dependencies = []
 
 [dependency-groups]
 lint = [
+    "ruff",
     "pyright>=1.1.400",
 ]
+test = []
