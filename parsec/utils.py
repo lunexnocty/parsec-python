@@ -155,22 +155,22 @@ def curry[T1, T2, T3, T4, T5, T6, T7, T8, T9, R](
 def curry(fn: Callable[..., Any]) -> Callable[..., Any]:
     from functools import wraps
 
-    def make_curried(expected_args):
-        @wraps(fn)
-        def inner(*args):
-            if len(args) >= expected_args:
-                return fn(*args)
-            return curry(lambda *more: fn(*args, *more))
+    expected_args = fn.__code__.co_argcount
 
-        return inner
+    @wraps(fn)
+    def curried(*args: Any) -> Any:
+        if len(args) >= expected_args:
+            return fn(*args)
+        def _(*more: Any) -> Any:
+            return fn(*args, *more)
+        return curry(_)
 
-    n = fn.__code__.co_argcount
-    return make_curried(n)
-
-@curry
-def true[A, B](_a: A, _b: B) -> A:
-    return _a
+    return curried
 
 @curry
-def false[A, B](_a: A, _b: B) -> B:
-    return _b
+def true[A](x: A, _: Any) -> A:
+    return x
+
+@curry
+def false[B](_: Any, x: B) -> B:
+    return x

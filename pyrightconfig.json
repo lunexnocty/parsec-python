@@ -1,0 +1,24 @@
+{
+    "include": [
+        "parsec",
+        "tests",
+        "examples"
+    ],
+    "exclude": [
+        "build",
+        "dist"
+    ], 
+    "venvPath": "./.venv",
+    "reportMissingImports": true,
+    "pythonVersion": "3.13",
+    "typeCheckingMode": "strict",
+    "extraPaths": [
+        "parsec"
+    ],
+    "ignore": [
+        "**/migrations/**"
+    ],
+    "reportUnnecessaryTypeIgnoreComment": true,
+    "reportUnusedImport": true,
+    "reportUnusedVariable": true
+}
