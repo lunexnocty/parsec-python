@@ -39,7 +39,7 @@ jobs:
       - name: Install dependencies
         run: |
           if [ -f pyproject.toml ]; then
-            uv sync --with test
+            uv sync --extra test
           elif [ -f requirements.txt ]; then
             uv pip install -r requirements.txt
           else
