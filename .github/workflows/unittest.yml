@@ -29,8 +29,10 @@ jobs:
         uses: astral-sh/setup-uv@v1
         with:
           version: latest
-          cache: true
-          cache-dependency-glob: uv.lock
+          enable-cache: true
+          cache-dependency-glob: |
+            uv.lock
+            requirements.txt
 
       - name: Install dependencies
         run: |
