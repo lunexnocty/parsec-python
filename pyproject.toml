@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []
 
-[dependency-groups]
+[project.optional-dependencies]
 lint = [
     "ruff",
     "pyright>=1.1.400",

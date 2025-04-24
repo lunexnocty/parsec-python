@@ -16,20 +16,18 @@ name = "parsec-python"
 version = "0.1.0"
 source = { virtual = "." }
 
-[package.dev-dependencies]
+[package.optional-dependencies]
 lint = [
     { name = "pyright" },
     { name = "ruff" },
 ]
 
 [package.metadata]
-
-[package.metadata.requires-dev]
-lint = [
-    { name = "pyright", specifier = ">=1.1.400" },
-    { name = "ruff" },
+requires-dist = [
+    { name = "pyright", marker = "extra == 'lint'", specifier = ">=1.1.400" },
+    { name = "ruff", marker = "extra == 'lint'" },
 ]
-test = []
+provides-extras = ["lint", "test"]
 
 [[package]]
 name = "pyright"
