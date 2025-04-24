@@ -4,7 +4,7 @@
 
 A Typed Monadic Parser Combinator for Python.
 
-[![Contributors][contributors-shield]][contributors-url] [![Forks][forks-shield]][forks-url] [![Stargazers][stars-shield]][stars-url] [![Issues][issues-shield]][issues-url] [![MIT License][license-shield]][license-url][![Unit Tests][tests-shield]][tests-link]
+[![Contributors][contributors-shield]][contributors-url] [![Forks][forks-shield]][forks-url] [![Stargazers][stars-shield]][stars-url] [![Issues][issues-shield]][issues-url] [![MIT License][license-shield]][license-url] [![unittest][tests-shield]][tests-link]
 
 <br />
 <p align="center">
