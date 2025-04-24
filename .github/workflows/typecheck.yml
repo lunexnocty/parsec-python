@@ -39,7 +39,7 @@ jobs:
             - name: Install dependencies
               run: |
                 if [ -f pyproject.toml ]; then
-                    uv sync --extras lint
+                    uv sync --extra lint
                 else
                     echo "pyproject.toml not found."
                     exit 1
