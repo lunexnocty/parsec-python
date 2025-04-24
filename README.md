@@ -4,7 +4,7 @@
 
 A Typed Monadic Parser Combinator for Python.
 
-[![Contributors][contributors-shield]][contributors-url] [![Forks][forks-shield]][forks-url] [![Stargazers][stars-shield]][stars-url] [![Issues][issues-shield]][issues-url] [![MIT License][license-shield]][license-url]
+[![Contributors][contributors-shield]][contributors-url] [![Forks][forks-shield]][forks-url] [![Stargazers][stars-shield]][stars-url] [![Issues][issues-shield]][issues-url] [![MIT License][license-shield]][license-url][![Unit Tests][tests-shield]][tests-link]
 
 <br />
 <p align="center">
@@ -75,3 +75,5 @@ parsec-python
 [issues-url]: https://img.shields.io/github/issues/lunexnocty/parsec-python.svg
 [license-shield]: https://img.shields.io/github/license/lunexnocty/parsec-python.svg?style=flat-square
 [license-url]: https://github.com/lunexnocty/parsec-python/blob/main/LICENSE
+[tests-shield]: https://github.com/lunexnocty/parsec-python/actions/workflows/python-package.yml/badge.svg
+[tests-link]: https://github.com/lunexnocty/parsec-python/actions/workflows/python-package.yml

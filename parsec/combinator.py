@@ -1,6 +1,7 @@
 from functools import reduce
 from typing import Iterable, overload, Any, Callable
 
+from parsec.err import ParseErr
 from parsec.utils import curry
 from parsec.parser import Parser
 
@@ -17,20 +18,17 @@ def fmap[I, R, S](fn: Callable[[R], S], p: Parser[I, R]) -> Parser[I, S]:
 
 @curry
 def apply[I, R, S](pfn: Parser[I, Callable[[R], S]], p: Parser[I, R]) -> Parser[I, S]:
-    return pfn.apply(p)
+    return p.apply(pfn)
 
 
-@curry
 def alter[I, R](p1: Parser[I, R], p2: Parser[I, R]) -> Parser[I, R]:
     return p1.alter(p2)
 
 
-@curry
 def pair[I, R, S](p1: Parser[I, R], p2: Parser[I, S]) -> Parser[I, tuple[R, S]]:
     return p1.pair(p2)
 
 
-@curry
 def otherwise[I, R, S](p1: Parser[I, R], p2: Parser[I, S]) -> Parser[I, R | S]:
     return p1.otherwise(p2)
 
@@ -56,25 +54,25 @@ def suffix[I, R](_suffix: Parser[I, Any], p: Parser[I, R]) -> Parser[I, R]:
 
 
 @curry
-def between[I, R, S](
+def between[I, R](
     left: Parser[I, Any], right: Parser[I, Any], p: Parser[I, R]
 ) -> Parser[I, R]:
     return p.between(left, right)
 
 
 @curry
-def ltrim[I, R](ignores: Iterable[Parser[I, Any]], p: Parser[I, R]) -> Parser[I, R]:
-    return p.ltrim(ignores)
+def ltrim[I, R](ignore: Parser[I, Any], p: Parser[I, R]) -> Parser[I, R]:
+    return p.ltrim(ignore)
 
 
 @curry
-def rtrim[I, R](ignores: Iterable[Parser[I, Any]], p: Parser[I, R]) -> Parser[I, R]:
-    return p.rtrim(ignores)
+def rtrim[I, R](ignore: Parser[I, Any], p: Parser[I, R]) -> Parser[I, R]:
+    return p.rtrim(ignore)
 
 
 @curry
-def trim[I, R](ignores: Iterable[Parser[I, Any]], p: Parser[I, R]) -> Parser[I, R]:
-    return p.trim(ignores)
+def trim[I, R](ignore: Parser[I, Any], p: Parser[I, R]) -> Parser[I, R]:
+    return p.trim(ignore)
 
 
 @curry
@@ -161,7 +159,7 @@ def as_type[I, R, S](tp: type[S], p: Parser[I, R]) -> Parser[I, S]:
 
 
 @curry
-def with_err[I, R, S](value: S, p: Parser[I, R]) -> Parser[I, R]:
+def with_err[I, R](value: ParseErr, p: Parser[I, R]) -> Parser[I, R]:
     return p.with_err(value)
 
 

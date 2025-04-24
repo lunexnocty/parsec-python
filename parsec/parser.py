@@ -37,7 +37,7 @@ class Parser[I, R]:
         self._fn = fn
 
     def define(self, p: "Parser[I, R]"):
-        self._fn = lambda ctx: p.run(ctx)
+        self._fn: Callable[[Context[I]], Result[I, R]] | None = lambda ctx: p.run(ctx)
 
     def run(self, ctx: Context[I]) -> Result[I, R]:
         if self._fn is None:
@@ -61,8 +61,13 @@ class Parser[I, R]:
     @overload
     def __and__[S](self, p: "Parser[I, S]") -> "Parser[I, tuple[R, S]]": ...
 
-    def __and__(self, p: Any):
-        return self.pair(p).map(lambda t: (*t[0], t) if isinstance(t[0], tuple) else t)
+    def __and__[S, *TS](self, p: "Parser[I, S]"):
+        def _flat_(t: tuple[Any, Any]) -> tuple[Any, ...]:
+            if isinstance(t[0], tuple):
+                return (*cast(tuple[Any, ...], t[0]), t[1])
+            return t
+
+        return self.pair(p).map(_flat_)
 
     def __lshift__[S](
         self, fn: Callable[["Parser[I, R]"], "Parser[I, S]"]
@@ -103,10 +108,8 @@ class Parser[I, R]:
 
         return parse
 
-    def apply[S](
-        self: "Parser[I, Callable[[R], S]]", p: "Parser[I, R]"
-    ) -> "Parser[I, S]":
-        return self.bind(p.map)
+    def apply[S](self, pfn: "Parser[I, Callable[[R], S]]") -> "Parser[I, S]":
+        return pfn.bind(self.map)
 
     def alter(self, p: "Parser[I, R]") -> "Parser[I, R]":
         @Parser
@@ -135,7 +138,7 @@ class Parser[I, R]:
         return parse
 
     def pair[S](self, p: "Parser[I, S]") -> "Parser[I, tuple[R, S]]":
-        return self.map(lambda x: lambda y: (x, y)).apply(p)
+        return p.apply(self.map(lambda x: lambda y: (x, y)))
 
     def otherwise[S](self, p: "Parser[I, S]") -> "Parser[I, R | S]":
         p1 = self.as_type(type[R | S])
@@ -154,30 +157,28 @@ class Parser[I, R]:
         return self.otherwise(Parser[I, R | U].okay(value))
 
     def prefix(self, _prefix: "Parser[I, Any]") -> "Parser[I, R]":
-        return _prefix.map(false).apply(self)
+        return self.apply(_prefix.map(false))
 
     def suffix(self, _suffix: "Parser[I, Any]") -> "Parser[I, R]":
-        return self.map(true).apply(_suffix)
+        return _suffix.apply(self.map(true))
 
     def between(
         self, _prefix: "Parser[I, Any]", _suffix: "Parser[I, Any]"
     ) -> "Parser[I, R]":
         return self.prefix(_prefix).suffix(_suffix)
 
-    def ltrim(self, ignores: set["Parser[I, Any]"]) -> "Parser[I, R]":
-        p_ignotrs = reduce(lambda x, y: x.alter(y), ignores)
-        return self.prefix(p_ignotrs.many())
+    def ltrim(self, ignore: "Parser[I, Any]") -> "Parser[I, R]":
+        return self.prefix(ignore.many())
 
-    def rtrim(self, ignores: set["Parser[I, Any]"]) -> "Parser[I, R]":
-        p_ignotrs = reduce(lambda x, y: x.alter(y), ignores)
-        return self.suffix(p_ignotrs.many())
+    def rtrim(self, ignore: "Parser[I, Any]") -> "Parser[I, R]":
+        return self.suffix(ignore.many())
 
-    def trim(self, ignores: set["Parser[I, Any]"]) -> "Parser[I, R]":
-        return self.ltrim(ignores).rtrim(ignores)
+    def trim(self, ignore: "Parser[I, Any]") -> "Parser[I, R]":
+        return self.ltrim(ignore).rtrim(ignore)
 
     def sep_by(self, sep: "Parser[I, Any]") -> "Parser[I, list[R]]":
         remains = self.prefix(sep).many()
-        return self.map(cons).apply(remains)
+        return remains.apply(self.map(cons))
 
     def end_by(self, sep: "Parser[I, Any]") -> "Parser[I, list[R]]":
         return self.suffix(sep).many()
@@ -215,38 +216,40 @@ class Parser[I, R]:
     def chainl1(
         self, op: "Parser[I, Callable[[R], Callable[[R], R]]]"
     ) -> "Parser[I, R]":
-        return self.bind(lambda x: self.chainl(op, x))
+        def rest(x: R) -> Parser[I, R]:
+            return op.bind(lambda f: self.bind(lambda y: rest(f(x)(y)))).alter(
+                Parser[I, R].okay(x)
+            )
+
+        scan = self.bind(lambda x: rest(x))
+        return scan
 
     def chainr1(
         self, op: "Parser[I, Callable[[R], Callable[[R], R]]]"
     ) -> "Parser[I, R]":
-        return self.bind(lambda x: self.chainr(op, x))
+        def scan() -> Parser[I, R]:
+            return self.bind(
+                lambda x: op.bind(lambda f: scan().map(lambda y: f(x)(y))).alter(
+                    Parser[I, R].okay(x)
+                )
+            )
+
+        return scan()
 
     def chainl(
         self, op: "Parser[I, Callable[[R], Callable[[R], R]]]", initial: R
     ) -> "Parser[I, R]":
-        def rest(x: R) -> Parser[I, R]:
-            return op.bind(lambda f: self.map(lambda y: rest(f(x)(y)))).alter(
-                Parser[I, R].okay(initial)
-            )
-
-        return self.bind(rest)
+        return self.chainl1(op).alter(Parser[I, R].okay(initial))
 
     def chainr(
         self, op: "Parser[I, Callable[[R], Callable[[R], R]]]", initial: R
     ) -> "Parser[I, R]":
-        def rest(x: R) -> Parser[I, R]:
-            return op.bind(lambda f: scan.bind(lambda y: rest(f(x)(y)))).alter(
-                Parser[I, R].okay(initial)
-            )
+        return self.chainr1(op).alter(Parser[I, R].okay(initial))
 
-        scan = self.bind(rest)
-        return scan
-
-    def as_type[S](self, tp: type[S]) -> "Parser[I, S]":
+    def as_type[S](self, _: type[S]) -> "Parser[I, S]":
         return cast(Parser[I, S], self)
 
-    def with_err[S](self, err: ParseErr) -> "Parser[I, R]":
+    def with_err(self, err: ParseErr) -> "Parser[I, R]":
         @Parser
         def parse(ctx: Context[I]) -> Result[I, R]:
             ret = self.run(ctx)
@@ -265,6 +268,13 @@ def item[I](ctx: Context[I]) -> Result[I, I]:
     return Result[I, I].okay(
         ctx.update(ctx.stream.peek().pop()), ctx.stream.read().pop(), 1
     )
+
+
+@Parser
+def look[I](ctx: Context[I]) -> Result[I, I]:
+    if ctx.stream.eos():
+        return Result[I, I].fail(ctx, EOSErr(), 0)
+    return Result[I, I].okay(ctx, ctx.stream.peek().pop(), 0)
 
 
 token = item.eq
