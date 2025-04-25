@@ -161,15 +161,19 @@ def curry(fn: Callable[..., Any]) -> Callable[..., Any]:
     def curried(*args: Any) -> Any:
         if len(args) >= expected_args:
             return fn(*args)
+
         def _(*more: Any) -> Any:
-            return fn(*args, *more)
-        return curry(_)
+            return curried(*args, *more)
+
+        return _
 
     return curried
+
 
 @curry
 def true[A](x: A, _: Any) -> A:
     return x
+
 
 @curry
 def false[B](_: Any, x: B) -> B:

@@ -1,7 +1,7 @@
 [project]
 name = "parsec-python"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Monadic Parser Combinator for Python."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []

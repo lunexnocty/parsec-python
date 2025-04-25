@@ -1,10 +1,10 @@
 from dataclasses import dataclass
-from typing import Callable, cast, Any, Iterable, Unpack, overload
 from functools import reduce
+from typing import Any, Callable, Iterable, Unpack, cast, overload
 
 from parsec.context import Context
-from parsec.err import ParseErr, Expected, UnExpected, EOSErr
-from parsec.utils import true, false, cons
+from parsec.err import EOSErr, Expected, ParseErr, UnExpected
+from parsec.utils import cons, false, true
 
 
 @dataclass
@@ -73,6 +73,9 @@ class Parser[I, R]:
         self, fn: Callable[["Parser[I, R]"], "Parser[I, S]"]
     ) -> "Parser[I, S]":
         return fn(self)
+
+    def __matmul__[S](self, fn: Callable[[R], S]) -> "Parser[I, S]":
+        return self.map(fn)
 
     @classmethod
     def okay(cls, value: R) -> "Parser[I, R]":
