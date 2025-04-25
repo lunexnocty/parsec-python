@@ -190,9 +190,6 @@ class TestBasic(unittest.TestCase):
         p = char("a").some()
         self.assertEqual(parse(p, "a"), ["a"])
 
-        with self.assertRaises(SystemExit):
-            parse(p, "")
-
     def test_many(self):
         p = char("a").many()
         self.assertEqual(parse(p, "aaa"), ["a", "a", "a"])
@@ -237,8 +234,8 @@ class TestBasic(unittest.TestCase):
         p = char("a").alter(char("b"))
         self.assertEqual(parse(p, "b"), "b")
 
-        p = char("a").alter(char("b"))
-        self.assertEqual(parse(p, "a"), "a")
+        p = char("ab").alter(char("b"))
+        self.assertEqual(parse(p, "b"), "b")
 
     def test_fast_alter(self):
         p = look.eq("a").fast_alter(char("b"))

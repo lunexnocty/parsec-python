@@ -58,7 +58,7 @@ def parse[R](parser: Parser[str, R], text: str):
             return val
         case Fail(error=err):
             raise SystemExit(
-                f"Parse error at:\n  {ret.context.state.format()}\n  {err}"
+                f"Parse error at:\n  {ret.context.state.format()}\n  {err}\n  consumed: {ret.consumed}\n  peek: {ret.context.stream.peek().pop()}"
             )
 
 
@@ -92,20 +92,26 @@ bindigit = item.range("01").with_err(Expected("binary digit"))
 octdigit = item.range("01234567").with_err(Expected("octal digit"))
 hexdigit = item.range("0123456789ABCDEFabcdef").with_err(Expected("hexadecimal digit"))
 
-num_sign = item.range("+-").default("")
+_num_sign = item.range("+-").default("")
 digits = digit.many().map(_flat_str)
 digits1 = digit.some().map(_flat_str)
 _bindigit1 = bindigit.some().map(_flat_str)
 _octdigit1 = octdigit.some().map(_flat_str)
 _hexdigit1 = hexdigit.some().map(_flat_str)
 
-decinteger = (num_sign & digits1).map(_flat_str)
+decinteger = (_num_sign & digits1).map(_flat_str)
 
-bininteger = (num_sign & _bindigit1.prefix(char("0") & item.range("bB"))).map(_flat_str)
+bininteger = (_num_sign & _bindigit1.prefix(char("0") & item.range("bB"))).map(
+    _flat_str
+)
 
-octinteger = (num_sign & _octdigit1.prefix(char("0") & item.range("bB"))).map(_flat_str)
+octinteger = (_num_sign & _octdigit1.prefix(char("0") & item.range("oO"))).map(
+    _flat_str
+)
 
-hexinteger = (num_sign & _hexdigit1.prefix(char("0") & item.range("bB"))).map(_flat_str)
+hexinteger = (_num_sign & _hexdigit1.prefix(char("0") & item.range("xX"))).map(
+    _flat_str
+)
 
 integer = (
     hexinteger.map(partial(int, base=16))
@@ -114,12 +120,12 @@ integer = (
     | decinteger.map(partial(int, base=10))
 )
 
-_exponet = (item.range("eE") & decinteger).map(_flat_str).default("")
-_dotment = (dot & digits).map(_flat_str).default("")
-_digit_float = (digits1 & _dotment & _exponet).map(_flat_str)
-_dot_float = (dot & digits1 & _exponet).map(_flat_str)
+_exponent = (item.range("eE") & decinteger).map(_flat_str)
+_dotment = (dot & digits & _exponent.default("")).map(_flat_str)
+_digit_float = (digits1 & (_dotment | _exponent)).map(_flat_str)
+_dot_float = (dot & digits1 & _exponent.default("")).map(_flat_str)
 floatnumber = (
-    (num_sign & (_digit_float | _dot_float))
+    (_num_sign & (_dot_float | _digit_float))
     .map(_flat_str)
     .map(float)
     .with_err(Expected("float number"))

@@ -121,19 +121,22 @@ class Parser[I, R]:
             r2 = p.run(ctx)
             if isinstance(r2.outcome, Okay):
                 return r2
-            ctx = r2.context.backtrack(r2.consumed, ctx.state)
             children = [r1.outcome.error, r2.outcome.error]
-            return Result[I, R].fail(ctx, ParseErr(children), 0)
+            return Result[I, R].fail(r2.context, ParseErr(children), r2.consumed)
 
         return parse
 
     def fast_alter(self, p: "Parser[I, R]") -> "Parser[I, R]":
         @Parser
         def parse(ctx: Context[I]):
-            r = self.run(ctx)
-            if r.consumed > 0 or isinstance(r.outcome, Okay):
-                return r
-            return p.run(r.context)
+            r1 = self.run(ctx)
+            if r1.consumed > 0 or isinstance(r1.outcome, Okay):
+                return r1
+            r2 = p.run(r1.context)
+            if isinstance(r2.outcome, Okay):
+                return r2
+            children = [r1.outcome.error, r2.outcome.error]
+            return Result[I, R].fail(r2.context, ParseErr(children), r2.consumed)
 
         return parse
 
@@ -256,7 +259,7 @@ class Parser[I, R]:
             if isinstance(ret.outcome, Okay):
                 return ret
             err.add(ret.outcome.error)
-            return Result[I, R].fail(ctx, err, ret.consumed)
+            return Result[I, R].fail(ret.context, err, ret.consumed)
 
         return parse
 
