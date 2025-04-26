@@ -3,7 +3,7 @@ from functools import reduce
 from typing import Any, Callable, Iterable, Unpack, cast, overload
 
 from parsec.context import Context
-from parsec.err import EOSErr, Expected, ParseErr, UnExpected
+from parsec.error import EOSError, Expected, ParseErr, UnExpected, AlterError
 from parsec.utils import cons, false, true
 
 
@@ -124,8 +124,8 @@ class Parser[I, R]:
             r2 = p.run(ctx)
             if isinstance(r2.outcome, Okay):
                 return r2
-            children = [r1.outcome.error, r2.outcome.error]
-            return Result[I, R].fail(r2.context, ParseErr(children), r2.consumed)
+            alt_err = AlterError([r1.outcome.error, r2.outcome.error])
+            return Result[I, R].fail(r2.context, alt_err.join(), r2.consumed)
 
         return parse
 
@@ -138,8 +138,8 @@ class Parser[I, R]:
             r2 = p.run(r1.context)
             if isinstance(r2.outcome, Okay):
                 return r2
-            children = [r1.outcome.error, r2.outcome.error]
-            return Result[I, R].fail(r2.context, ParseErr(children), r2.consumed)
+            alt_err = AlterError([r1.outcome.error, r2.outcome.error])
+            return Result[I, R].fail(r2.context, alt_err.join(), r2.consumed)
 
         return parse
 
@@ -198,17 +198,22 @@ class Parser[I, R]:
         return self.repeat(n - 1).apply(self.map(cons))
 
     def where(self, fn: Callable[[R], bool]) -> "Parser[I, R]":
-        return self.bind(
-            lambda v: Parser[I, R].okay(v)
-            if fn(v)
-            else Parser[I, R].fail(UnExpected(v))
-        )
+        @Parser
+        def parse(ctx: Context[I]) -> Result[I, R]:
+            r = self.run(ctx)
+            if isinstance(r.outcome, Fail):
+                return r
+            if fn(r.outcome.value):
+                return r
+            return Result[I, R].fail(r.context, UnExpected(r.outcome.value, r.context.state.format()), r.consumed)
+
+        return parse
 
     def eq(self, value: R) -> "Parser[I, R]":
-        return self.where(lambda v: v == value).with_err(Expected(f"{value}"))
+        return self.where(lambda v: v == value)
 
     def neq(self, value: R) -> "Parser[I, R]":
-        return self.where(lambda v: v != value).with_err(UnExpected(f"{value}"))
+        return self.where(lambda v: v != value)
 
     def range(self, ranges: Iterable[R]) -> "Parser[I, R]":
         return self.where(lambda v: v in ranges)
@@ -255,14 +260,13 @@ class Parser[I, R]:
     def as_type[S](self, _: type[S]) -> "Parser[I, S]":
         return cast(Parser[I, S], self)
 
-    def with_err(self, err: ParseErr) -> "Parser[I, R]":
+    def label[S](self, expected: S) -> "Parser[I, R]": # type: ignore
         @Parser
         def parse(ctx: Context[I]) -> Result[I, R]:
             ret = self.run(ctx)
             if isinstance(ret.outcome, Okay):
                 return ret
-            err.add(ret.outcome.error)
-            return Result[I, R].fail(ret.context, err, ret.consumed)
+            return Result[I, R].fail(ret.context, Expected(expected, [ret.outcome.error]), ret.consumed)
 
         return parse
 
@@ -270,7 +274,7 @@ class Parser[I, R]:
 @Parser
 def item[I](ctx: Context[I]) -> Result[I, I]:
     if ctx.stream.eos():
-        return Result[I, I].fail(ctx, EOSErr(), 0)
+        return Result[I, I].fail(ctx, EOSError(ctx.state.format()), 0)
     return Result[I, I].okay(
         ctx.update(ctx.stream.peek().pop()), ctx.stream.read().pop(), 1
     )
@@ -279,7 +283,7 @@ def item[I](ctx: Context[I]) -> Result[I, I]:
 @Parser
 def look[I](ctx: Context[I]) -> Result[I, I]:
     if ctx.stream.eos():
-        return Result[I, I].fail(ctx, EOSErr(), 0)
+        return Result[I, I].fail(ctx, EOSError(ctx.state.format()), 0)
     return Result[I, I].okay(ctx, ctx.stream.peek().pop(), 0)
 
 

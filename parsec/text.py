@@ -2,7 +2,6 @@ from functools import partial
 from pathlib import Path
 from parsec.context import IState, IStream, Context
 from parsec.parser import Parser, token, tokens, item, Okay, Fail
-from parsec.err import Expected
 from typing import Callable
 
 
@@ -32,7 +31,7 @@ class TextStream(IStream[str]):
 
 
 class TextState(IState[str]):
-    def __init__(self, file: Path | None = None, line: int = 1, column: int = 1):
+    def __init__(self, file: Path | None = None, line: int = 1, column: int = 0):
         self.file = None if file is None else str(file.absolute())
         self.line = line
         self.column = column
@@ -54,12 +53,10 @@ def parse[R](parser: Parser[str, R], text: str):
     ctx = Context(TextStream(text), TextState())
     ret = parser.run(ctx)
     match ret.outcome:
-        case Okay(value=val):
-            return val
-        case Fail(error=err):
-            raise SystemExit(
-                f"Parse error at:\n  {ret.context.state.format()}\n  {err}\n  consumed: {ret.consumed}\n  peek: {ret.context.stream.peek().pop()}"
-            )
+        case Okay(value=v):
+            return v
+        case Fail(error=e):
+            raise e
 
 
 _flat_str = "".join
@@ -82,15 +79,15 @@ open_curly = char("{")
 close_curly = char("}")
 underline = char("_")
 
-alpha = item.where(str.isalpha).with_err(Expected("alphabet"))
-alnum = item.where(str.isalnum).with_err(Expected("alphanumeric"))
-lower = item.where(str.islower).with_err(Expected("lowercase"))
-upper = item.where(str.isupper).with_err(Expected("uppercase"))
-blank = item.where(str.isspace).with_err(Expected("whitespace"))
-digit = item.where(str.isdigit).with_err(Expected("digit"))
-bindigit = item.range("01").with_err(Expected("binary digit"))
-octdigit = item.range("01234567").with_err(Expected("octal digit"))
-hexdigit = item.range("0123456789ABCDEFabcdef").with_err(Expected("hexadecimal digit"))
+alpha = item.where(str.isalpha)
+alnum = item.where(str.isalnum)
+lower = item.where(str.islower)
+upper = item.where(str.isupper)
+blank = item.where(str.isspace)
+digit = item.where(str.isdigit)
+bindigit = item.range("01")
+octdigit = item.range("01234567")
+hexdigit = item.range("0123456789ABCDEFabcdef")
 
 _num_sign = item.range("+-").default("")
 digits = digit.many().map(_flat_str)
@@ -118,7 +115,7 @@ integer = (
     | octinteger.map(partial(int, base=8))
     | bininteger.map(partial(int, base=2))
     | decinteger.map(partial(int, base=10))
-)
+).label('integer')
 
 _exponent = (item.range("eE") & decinteger).map(_flat_str)
 _dotment = (dot & digits & _exponent.default("")).map(_flat_str)
@@ -128,13 +125,13 @@ floatnumber = (
     (_num_sign & (_dot_float | _digit_float))
     .map(_flat_str)
     .map(float)
-    .with_err(Expected("float number"))
+    .label("float number")
 )
 
-number = (floatnumber | integer).with_err(Expected("number"))
+number = (floatnumber | integer).label("number")
 blanks = blank.many().map(_flat_str)
 identifier = (
     ((alpha | underline) & (alnum | underline).many().map(_flat_str))
     .map(_flat_str)
-    .with_err(Expected("identifier"))
+    .label("identifier")
 )

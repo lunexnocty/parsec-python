@@ -1,7 +1,6 @@
 from functools import reduce
 from typing import Iterable, overload, Any, Callable
 
-from parsec.err import ParseErr
 from parsec.utils import curry
 from parsec.parser import Parser
 
@@ -159,8 +158,8 @@ def as_type[I, R, S](tp: type[S], p: Parser[I, R]) -> Parser[I, S]:
 
 
 @curry
-def with_err[I, R](value: ParseErr, p: Parser[I, R]) -> Parser[I, R]:
-    return p.with_err(value)
+def label[I, R, S](value: S, p: Parser[I, R]) -> Parser[I, R]: # type: ignore
+    return p.label(value)
 
 
 @overload
