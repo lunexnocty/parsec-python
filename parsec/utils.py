@@ -19,28 +19,28 @@ def identity[T](_x: T) -> T:
     return _x
 
 
-def flip[T, U, V](
-    _fn: Callable[[T], Callable[[U], V]],
-) -> Callable[[U], Callable[[T], V]]:
+def flip[T, S, V](
+    _fn: Callable[[T], Callable[[S], V]],
+) -> Callable[[S], Callable[[T], V]]:
     return lambda u: lambda t: _fn(t)(u)
 
 
-def compose[T, U](*_fns: Callable[[T], U]) -> Callable[[T], U]:
-    def helper(x: T) -> U:
+def compose[T, S](*_fns: Callable[[T], S]) -> Callable[[T], S]:
+    def helper(x: T) -> S:
         _: Any = x
         for fn in reversed(_fns):
             _ = fn(_)
-        return cast(U, _)
+        return cast(S, _)
 
     return helper
 
 
-def pipes[T, U](*_fns: Callable[[T], U]) -> Callable[[T], U]:
-    def helper(x: T) -> U:
+def pipes[T, S](*_fns: Callable[[T], S]) -> Callable[[T], S]:
+    def helper(x: T) -> S:
         _: Any = x
         for func in _fns:
             _ = func(_)
-        return cast(U, _)
+        return cast(S, _)
 
     return helper
 

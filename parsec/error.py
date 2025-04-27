@@ -23,26 +23,26 @@ class ParseErr(Exception, ABC):
     def pretty(self, indent: int = 0) -> str:
         raise NotImplementedError
 
-class UnExpected[R](ParseErr):
+class UnExpected(ParseErr):
     __eq__ = ParseErr.__eq__
     __hash__ = ParseErr.__hash__
     
-    def __init__(self, value: R, state: str):
+    def __init__(self, value: str, state: str):
         self.value = value
         self.state = state
     
     def pretty(self, indent: int = 0):
-        pad = ' ' * indent
+        pad = ' ' * indent if indent > 0 else '\n'
         return f'{pad}UnExpected "{self.value}" at {self.state}'
 
 
 def EOSError(state: str):
     return UnExpected(EOS, state)
 
-class Expected[R](ParseErr):
+class Expected(ParseErr):
     __eq__ = ParseErr.__eq__
 
-    def __init__(self, value: R, children: Iterable[ParseErr] | None = None):
+    def __init__(self, value: str, children: Iterable[ParseErr] | None = None):
         self.value = value
         self.children: list[ParseErr] = [] if children is None else list(children)
         self.resolve()
@@ -58,7 +58,7 @@ class Expected[R](ParseErr):
         self.children = list(set(children))
     
     def pretty(self, indent: int = 0):
-        pad = ' ' * indent
+        pad = ' ' * indent if indent > 0 else '\n'
         msg = [f'{pad}Expected "{self.value}"']
         for child in self.children:
             msg.append(child.pretty(indent=indent + self.indent))
@@ -81,5 +81,5 @@ class AlterError(ParseErr):
         return AlterError(list(children))
     
     def pretty(self, indent: int = 0):
-        pad = ' ' * indent
+        pad = ' ' * indent if indent > 0 else '\n'
         return f'{pad}AlterError'

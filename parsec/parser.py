@@ -131,7 +131,7 @@ class Parser[I, R]:
 
     def fast_alter(self, p: "Parser[I, R]") -> "Parser[I, R]":
         @Parser
-        def parse(ctx: Context[I]):
+        def parse(ctx: Context[I]) -> Result[I, R]:
             r1 = self.run(ctx)
             if r1.consumed > 0 or isinstance(r1.outcome, Okay):
                 return r1
@@ -159,8 +159,8 @@ class Parser[I, R]:
     def maybe(self) -> "Parser[I, R | None]":
         return self.default(None)
 
-    def default[U](self, value: U) -> "Parser[I, R | U]":
-        return self.otherwise(Parser[I, R | U].okay(value))
+    def default[S](self, value: S) -> "Parser[I, R | S]":
+        return self.otherwise(Parser[I, R | S].okay(value))
 
     def prefix(self, _prefix: "Parser[I, Any]") -> "Parser[I, R]":
         return self.apply(_prefix.map(false))
@@ -205,7 +205,7 @@ class Parser[I, R]:
                 return r
             if fn(r.outcome.value):
                 return r
-            return Result[I, R].fail(r.context, UnExpected(r.outcome.value, r.context.state.format()), r.consumed)
+            return Result[I, R].fail(r.context, UnExpected(str(r.outcome.value), r.context.state.format()), r.consumed)
 
         return parse
 
@@ -260,7 +260,7 @@ class Parser[I, R]:
     def as_type[S](self, _: type[S]) -> "Parser[I, S]":
         return cast(Parser[I, S], self)
 
-    def label[S](self, expected: S) -> "Parser[I, R]": # type: ignore
+    def label(self, expected: str) -> "Parser[I, R]":
         @Parser
         def parse(ctx: Context[I]) -> Result[I, R]:
             ret = self.run(ctx)

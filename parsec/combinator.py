@@ -158,7 +158,7 @@ def as_type[I, R, S](tp: type[S], p: Parser[I, R]) -> Parser[I, S]:
 
 
 @curry
-def label[I, R, S](value: S, p: Parser[I, R]) -> Parser[I, R]: # type: ignore
+def label[I, R](value: str, p: Parser[I, R]) -> Parser[I, R]:
     return p.label(value)
 
 
