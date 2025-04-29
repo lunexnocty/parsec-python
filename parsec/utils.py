@@ -1,64 +1,4 @@
-from typing import Any, Callable, cast, overload
-
-
-def const[A](a: A) -> Callable[[Any], A]:
-    def func(_: Any) -> A:
-        return a
-
-    return func
-
-
-def cons[T](_a: T) -> Callable[[list[T]], list[T]]:
-    def put(_l: list[T]):
-        return [_a, *_l]
-
-    return put
-
-
-def identity[T](_x: T) -> T:
-    return _x
-
-
-def flip[T, S, V](
-    _fn: Callable[[T], Callable[[S], V]],
-) -> Callable[[S], Callable[[T], V]]:
-    return lambda u: lambda t: _fn(t)(u)
-
-
-def compose[T, S](*_fns: Callable[[T], S]) -> Callable[[T], S]:
-    def helper(x: T) -> S:
-        _: Any = x
-        for fn in reversed(_fns):
-            _ = fn(_)
-        return cast(S, _)
-
-    return helper
-
-
-def pipes[T, S](*_fns: Callable[[T], S]) -> Callable[[T], S]:
-    def helper(x: T) -> S:
-        _: Any = x
-        for func in _fns:
-            _ = func(_)
-        return cast(S, _)
-
-    return helper
-
-
-def head[T, *Ts](_tuples: tuple[T, *Ts]):
-    return _tuples[0]
-
-
-def tail[T, *Ts](_tuples: tuple[T, *Ts]):
-    return _tuples[1:]
-
-
-def fst[T, *Ts](_tuples: tuple[T, *Ts]):
-    return head(_tuples)
-
-
-def snd[T1, T2, *Ts](_tuples: tuple[T1, T2, *Ts]):
-    return head(tail(_tuples))
+from typing import Any, Callable, overload
 
 
 @overload
@@ -86,9 +26,7 @@ def curry[T1, T2, T3, T4, R](
 @overload
 def curry[T1, T2, T3, T4, T5, R](
     fn: Callable[[T1, T2, T3, T4, T5], R],
-) -> Callable[
-    [T1], Callable[[T2], Callable[[T3], Callable[[T4], Callable[[T5], R]]]]
-]: ...
+) -> Callable[[T1], Callable[[T2], Callable[[T3], Callable[[T4], Callable[[T5], R]]]]]: ...
 
 
 @overload
@@ -107,9 +45,7 @@ def curry[T1, T2, T3, T4, T5, T6, T7, R](
     [T1],
     Callable[
         [T2],
-        Callable[
-            [T3], Callable[[T4], Callable[[T5], Callable[[T6], Callable[[T7], R]]]]
-        ],
+        Callable[[T3], Callable[[T4], Callable[[T5], Callable[[T6], Callable[[T7], R]]]]],
     ],
 ]: ...
 
@@ -123,9 +59,7 @@ def curry[T1, T2, T3, T4, T5, T6, T7, T8, R](
         [T2],
         Callable[
             [T3],
-            Callable[
-                [T4], Callable[[T5], Callable[[T6], Callable[[T7], Callable[[T8], R]]]]
-            ],
+            Callable[[T4], Callable[[T5], Callable[[T6], Callable[[T7], Callable[[T8], R]]]]],
         ],
     ],
 ]: ...
@@ -168,13 +102,3 @@ def curry(fn: Callable[..., Any]) -> Callable[..., Any]:
         return _
 
     return curried
-
-
-@curry
-def true[A](x: A, _: Any) -> A:
-    return x
-
-
-@curry
-def false[B](_: Any, x: B) -> B:
-    return x

@@ -1,8 +1,8 @@
 from functools import reduce
-from typing import Iterable, overload, Any, Callable
+from typing import Any, Callable, Iterable, overload
 
-from parsec.utils import curry
 from parsec.parser import Parser
+from parsec.utils import curry
 
 
 @curry
@@ -53,9 +53,7 @@ def suffix[I, R](_suffix: Parser[I, Any], p: Parser[I, R]) -> Parser[I, R]:
 
 
 @curry
-def between[I, R](
-    left: Parser[I, Any], right: Parser[I, Any], p: Parser[I, R]
-) -> Parser[I, R]:
+def between[I, R](left: Parser[I, Any], right: Parser[I, Any], p: Parser[I, R]) -> Parser[I, R]:
     return p.between(left, right)
 
 
@@ -125,30 +123,22 @@ def many[I, R](p: Parser[I, R]) -> Parser[I, list[R]]:
 
 
 @curry
-def chainl1[I, R](
-    op: Parser[I, Callable[[R], Callable[[R], R]]], p: Parser[I, R]
-) -> Parser[I, R]:
+def chainl1[I, R](op: Parser[I, Callable[[R], Callable[[R], R]]], p: Parser[I, R]) -> Parser[I, R]:
     return p.chainl1(op)
 
 
 @curry
-def chainr1[I, R, S](
-    op: Parser[I, Callable[[R], Callable[[R], R]]], p: Parser[I, R]
-) -> Parser[I, R]:
+def chainr1[I, R, S](op: Parser[I, Callable[[R], Callable[[R], R]]], p: Parser[I, R]) -> Parser[I, R]:
     return p.chainr1(op)
 
 
 @curry
-def chainl[I, R](
-    op: Parser[I, Callable[[R], Callable[[R], R]]], initial: R, p: Parser[I, R]
-) -> Parser[I, R]:
+def chainl[I, R](op: Parser[I, Callable[[R], Callable[[R], R]]], initial: R, p: Parser[I, R]) -> Parser[I, R]:
     return p.chainl(op, initial)
 
 
 @curry
-def chainr[I, R](
-    op: Parser[I, Callable[[R], Callable[[R], R]]], initial: R, p: Parser[I, R]
-) -> Parser[I, R]:
+def chainr[I, R](op: Parser[I, Callable[[R], Callable[[R], R]]], initial: R, p: Parser[I, R]) -> Parser[I, R]:
     return p.chainr(op, initial)
 
 
@@ -167,9 +157,7 @@ def sel[I, R1, R2](_p1: Parser[I, R1], _p2: Parser[I, R2]) -> Parser[I, R1 | R2]
 
 
 @overload
-def sel[I, R1, R2, R3](
-    _p1: Parser[I, R1], _p2: Parser[I, R2], _p3: Parser[I, R3]
-) -> Parser[I, R1 | R2 | R3]: ...
+def sel[I, R1, R2, R3](_p1: Parser[I, R1], _p2: Parser[I, R2], _p3: Parser[I, R3]) -> Parser[I, R1 | R2 | R3]: ...
 
 
 @overload
@@ -250,22 +238,16 @@ def sel[I](
     _p9: Parser[I, Any] | None = None,
     *_ps: Parser[I, Any],
 ) -> Parser[I, Any]:
-    plist: list[Parser[I, Any]] = list(
-        filter(None, (_p1, _p2, _p3, _p4, _p5, _p6, _p7, _p8, _p9, *_ps))
-    )
+    plist: list[Parser[I, Any]] = list(filter(None, (_p1, _p2, _p3, _p4, _p5, _p6, _p7, _p8, _p9, *_ps)))
     return reduce(lambda x, y: x | y, plist)
 
 
 @overload
-def seq[I, R1, R2](
-    _p1: Parser[I, R1], _p2: Parser[I, R2]
-) -> Parser[I, tuple[R1, R2]]: ...
+def seq[I, R1, R2](_p1: Parser[I, R1], _p2: Parser[I, R2]) -> Parser[I, tuple[R1, R2]]: ...
 
 
 @overload
-def seq[I, R1, R2, R3](
-    _p1: Parser[I, R1], _p2: Parser[I, R2], _p3: Parser[I, R3]
-) -> Parser[I, tuple[R1, R2, R3]]: ...
+def seq[I, R1, R2, R3](_p1: Parser[I, R1], _p2: Parser[I, R2], _p3: Parser[I, R3]) -> Parser[I, tuple[R1, R2, R3]]: ...
 
 
 @overload
@@ -346,7 +328,5 @@ def seq[I](
     _p9: Parser[I, Any] | None = None,
     *_ps: Parser[I, Any],
 ):
-    plist: list[Parser[I, Any]] = list(
-        filter(None, (_p1, _p2, _p3, _p4, _p5, _p6, _p7, _p8, _p9, *_ps))
-    )
+    plist: list[Parser[I, Any]] = list(filter(None, (_p1, _p2, _p3, _p4, _p5, _p6, _p7, _p8, _p9, *_ps)))
     return reduce(lambda x, y: x & y, plist)

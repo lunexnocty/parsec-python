@@ -12,3 +12,6 @@ lint = [
     "pyright>=1.1.400",
 ]
 test = []
+
+[tool.ruff.format]
+quote-style = "single"

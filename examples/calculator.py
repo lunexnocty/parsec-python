@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from operator import add, mul, sub, truediv
 from typing import Literal
 
+from parsec import Parser
 from parsec import combinator as C
-from parsec import text as T
+from parsec.basic import blank, char, item, l_round, number, r_round
 from parsec.utils import curry
 
 """
@@ -28,7 +29,7 @@ class Number(Expr):
         return self.value
 
 
-type Opcode = Literal["+", "-", "*", "/"]
+type Opcode = Literal['+', '-', '*', '/']
 
 
 @dataclass
@@ -36,7 +37,7 @@ class BinaryExpr(Expr):
     opcode: Opcode
     left: Expr
     right: Expr
-    op_func = dict(zip("+-*/", (add, sub, mul, truediv)))
+    op_func = dict(zip('+-*/', (add, sub, mul, truediv)))
 
     def exec(self):
         l_value = self.left.exec()
@@ -57,18 +58,18 @@ EBNF of calculator:
 def calc(op: str):
     @curry
     def _(x: int | float, y: int | float):
-        return {"+": x + y, "-": x - y, "*": x * y, "/": x / y}[op]
+        return {'+': x + y, '-': x - y, '*': x * y, '/': x / y}[op]
 
     return _
 
 
-expr = T.Parser[str, int | float]()
-num = T.number << C.trim(T.blank)
-factor = expr << C.between(T.open_round)(T.close_round) | num
-mul_or_div = T.char("*") | T.char("/")
-mul_or_div_op = (mul_or_div << C.trim(T.blank)) @ calc
+expr = Parser[str, int | float]()
+num = number << C.trim(blank)
+factor = expr << C.between(l_round)(r_round) | num
+mul_or_div = char('*') | char('/')
+mul_or_div_op = (mul_or_div << C.trim(blank)) @ calc
 mul_or_div_expr = factor << C.chainl1(mul_or_div_op)
-add_or_sub = T.item << C.range("+-")
-add_or_sub_op = (add_or_sub << C.trim(T.blank)) @ calc
+add_or_sub = item << C.range('+-')
+add_or_sub_op = (add_or_sub << C.trim(blank)) @ calc
 add_or_sub_expr = mul_or_div_expr << C.chainl1(add_or_sub_op)
 expr.define(add_or_sub_expr)
