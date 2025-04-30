@@ -1,7 +1,7 @@
 from functools import reduce
 from typing import Any, Callable, Iterable, overload
 
-from parsec.parser import Parser
+from parsec.core import Parser
 from parsec.utils import curry
 
 

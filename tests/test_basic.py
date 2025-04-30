@@ -1,8 +1,9 @@
 import unittest
 from typing import Callable
 
-from parsec.basic import blank, char, digit, item, parse_text
-from parsec.parser import Parser, look
+from parsec import item, parse_text
+from parsec.core import Parser, look
+from parsec.text.basic import blank, char, digit
 
 
 class TestBasic(unittest.TestCase):

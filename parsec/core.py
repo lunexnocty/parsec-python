@@ -266,9 +266,6 @@ def look[I](ctx: Context[I]) -> Result[I, I]:
     return Result[I, I].okay(ctx, ctx.stream.peek().pop(), 0)
 
 
-token = item.eq
-
-
 def tokens[I](values: Iterable[I]) -> Parser[I, list[I]]:
-    ps = [token(v) for v in values]
+    ps = [item.eq(v) for v in values]
     return reduce(lambda p1, p2: p1.pair(p2).map(lambda x: [*x[0], x[1]]), ps, Parser[I, list[I]].okay([]))

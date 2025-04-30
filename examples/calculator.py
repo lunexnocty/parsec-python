@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from operator import add, mul, sub, truediv
 from typing import Literal
 
-from parsec import Parser
+from parsec import Parser, item
 from parsec import combinator as C
-from parsec.basic import blank, char, item, l_round, number, r_round
+from parsec.text.basic import blank, char, l_round, number, r_round
 from parsec.utils import curry
 
 """

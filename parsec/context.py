@@ -62,5 +62,8 @@ class EOSType(str):
     def __eq__(self, value: object):
         return self is value
 
+    def __hash__(self):
+        return hash(('EOSType', 'EOS'))
+
 
 EOS: Final[EOSType] = EOSType()
