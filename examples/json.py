@@ -48,15 +48,26 @@ class JsonNull:
     value: Final[None] = None
 
 
+"""EBNF of Json
+>>> JsonValue := <JsonNull> | <JsonBool> | <JsonNumber> | <JsonString> | <JsonArray> | <JsonObject>
+>>> JsonNull := "null"
+>>> JsonBool := "true" | "false"
+>>> JsonNumber := { number }
+>>> JsonString := { string }
+>>> JsonArray := '[' [<JsonValue> (',' <JsonValue>)*] ']'
+>>> JsonObject := '{' [<JsonString> ':' <JsonValue> (',' <JsonString> ':' <JsonValue>)*] '}'
+"""
+
 jsonValue = Parser[str, JsonValue]()
 jsonNull = lex_literal('null').map(lambda _: JsonNull())
 jsonBool = lex_literal('true').map(lambda _: JsonBool(True)) | lex_literal('false').map(lambda _: JsonBool(False))
 jsonNumber = lex_number.map(JsonNumber)
 jsonString = lex_string.map(JsonString)
-jsonArray = jsonValue.sep_by(lex_comma).between(lex_l_bracket, lex_r_bracket).map(JsonArray)
+jsonArray = jsonValue.sep_by(lex_comma).default([]).between(lex_l_bracket, lex_r_bracket).map(JsonArray)
 jsonObject = (
     (lex_string.suffix(lex_colon) & jsonValue)
     .sep_by(lex_comma)
+    .default([])
     .between(lex_l_curly, lex_r_curly)
     .map(lambda v: JsonObject(dict(v)))
 )

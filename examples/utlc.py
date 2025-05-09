@@ -35,12 +35,12 @@ class App(Expr):
 """EBNF of Lambda Calculus
 >>> expr := <var> | <abs> | <app> | '(' <expr> ')'
 >>> var  := { identifier }
->>> abs  := '\\' <var>+ '->' <expr>
+>>> abs  := '\\' <var> '->' <expr>
 >>> app  := <expr> <expr>
 """
 
 expr = Parser[str, Expr]()
-var = lexeme.lex_identifier.map(Var)
-abs = (var.prefix(lexeme.lex_char('\\')) & expr.prefix(lexeme.lex_literal('->'))).map(lambda t: Abs(t[0], t[1]))
-app = (expr & expr).map(lambda t: App(t[0], t[1]))
+var = lexeme.lex_identifier @ Var
+abs = (var.prefix(lexeme.lex_char('\\')) & expr.prefix(lexeme.lex_literal('->'))).map(lambda t: Abs(*t))
+app = (expr & expr).map(lambda t: App(*t))
 expr.define(var | abs | app | expr.between(lexeme.lex_l_round, lexeme.lex_r_round))
