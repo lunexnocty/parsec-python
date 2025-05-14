@@ -1,4 +1,4 @@
-<h1 align="center"> Parsec </h1>
+<h1 align="center"> Parsec <a href="https://deepwiki.com/lunexnocty/parsec-python"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a></h1>
 <p  align="center">
   <em>A Monadic Parser Combinator for Python.</em>
 </p>
@@ -8,7 +8,7 @@
     <img src="https://github.com/lunexnocty/parsec-python/actions/workflows/unittest.yml/badge.svg" alt="Tests"/>
 </p>
 <p align="center">
-  <a href="https://github.com/lunexnocty/parsec-python/tree/main/docs"><strong>Documents</strong></a>
+  <a href="https://deepwiki.com/lunexnocty/parsec-python"><strong>Documents</strong></a>
   ·
   <a href="https://github.com/lunexnocty/parsec-python/tree/main/examples">Example</a>
   ·
