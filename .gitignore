@@ -10,5 +10,6 @@ __pycache__/
 build/
 dist/
 *.log
+__version__.py
 .install.txt
 .python-version

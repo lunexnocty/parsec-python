@@ -4,7 +4,23 @@ version = "0.1.0"
 description = "A Monadic Parser Combinator for Python."
 readme = "README.md"
 requires-python = ">=3.13"
+license = "LGPL-2.1"
+license-files = ["LICEN[CS]E*"]
+authors = [
+    { name = "luminox", email = "lunex_nocty@qq.com" }
+]
 dependencies = []
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Topic :: Software Development :: Libraries",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/lunexnocty/parsec-python"
+Issues = "https://github.com/lunexnocty/parsec-python/issues"
 
 [project.optional-dependencies]
 lint = [
@@ -12,6 +28,19 @@ lint = [
     "pyright>=1.1.400",
 ]
 test = []
+dev = [
+    "twine>=6.1.0",
+]
+
+[tool.setuptools_scm]
+write_to = "parsec/__version__.py"
+
+[tool.setuptools.packages]
+find = { where = ["parsec"], include = ["parsec*"], exclude = ["tests*", "examples*"] }
 
 [tool.ruff.format]
 quote-style = "single"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"

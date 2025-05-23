@@ -36,7 +36,7 @@ For full type support, Python 3.13+ is required.
 ```bash
 git clone https://github.com/lunexnocty/parsec-python.git
 cd parsec-python
-python setup.py install
+uv install .
 ```
 
 ## Quick Start
