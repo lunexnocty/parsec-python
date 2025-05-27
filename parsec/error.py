@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 from itertools import chain
 from typing import Iterable
 
-from parsec.context import EOS
-
 
 class ParseErr(Exception, ABC):
     indent = 4
@@ -40,7 +38,7 @@ class UnExpected(ParseErr):
 
 
 def EOSError(state: str):
-    return UnExpected(EOS, state)
+    return UnExpected('<EOS>', state)
 
 
 class Expected(ParseErr):

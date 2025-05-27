@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from core import Parser
-from text import lexeme
+from parsec.core import Parser
+from parsec.text import lex
 
 """
 AST of Lambda
@@ -40,7 +40,7 @@ class App(Expr):
 """
 
 expr = Parser[str, Expr]()
-var = lexeme.lex_identifier @ Var
-abs = (var.prefix(lexeme.lex_char('\\')) & expr.prefix(lexeme.lex_literal('->'))).map(lambda t: Abs(*t))
+var = lex.identifier @ Var
+abs = (var.prefix(lex.char('\\')) & expr.prefix(lex.literal('->'))).map(lambda t: Abs(*t))
 app = (expr & expr).map(lambda t: App(*t))
-expr.define(var | abs | app | expr.between(lexeme.lex_l_round, lexeme.lex_r_round))
+expr.define(var | abs | app | expr.between(lex.l_round, lex.r_round))

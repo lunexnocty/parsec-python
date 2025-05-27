@@ -2,8 +2,12 @@ from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Callable, Iterable, Unpack, cast, overload
 
-from parsec.context import Context
-from parsec.error import AlterError, EOSError, Expected, ParseErr, UnExpected
+from parsec.context import Context as _Context
+from parsec.error import AlterError as _AlterError
+from parsec.error import EOSError as _EOSError
+from parsec.error import Expected as _Expected
+from parsec.error import ParseErr as _ParseErr
+from parsec.error import UnExpected as _UnExpected
 
 
 @dataclass
@@ -13,21 +17,21 @@ class Okay[R]:
 
 @dataclass
 class Fail:
-    error: ParseErr
+    error: _ParseErr
 
 
 @dataclass
 class Result[I, R]:
-    context: Context[I]
+    context: _Context[I]
     outcome: Okay[R] | Fail
     consumed: int
 
     @classmethod
-    def okay(cls, ctx: Context[I], value: R, consumed: int) -> 'Result[I, R]':
+    def okay(cls, ctx: _Context[I], value: R, consumed: int) -> 'Result[I, R]':
         return cls(ctx, Okay(value), consumed)
 
     @classmethod
-    def fail(cls, ctx: Context[I], error: ParseErr, consumed: int) -> 'Result[I, R]':
+    def fail(cls, ctx: _Context[I], error: _ParseErr, consumed: int) -> 'Result[I, R]':
         return cls(ctx, Fail(error), consumed)
 
 
@@ -37,7 +41,7 @@ class Parser[I, R]:
     A parser that can be combined using monadic, functor, and applicative interfaces to build complex parsers.
     """
 
-    def __init__(self, fn: Callable[[Context[I]], Result[I, R]] | None = None) -> None:
+    def __init__(self, fn: Callable[[_Context[I]], Result[I, R]] | None = None) -> None:
         self._fn = fn
 
     def define(self, p: 'Parser[I, R]') -> None:
@@ -53,14 +57,14 @@ class Parser[I, R]:
         Example:
             >>> p1.define(p2)
         """
-        self._fn: Callable[[Context[I]], Result[I, R]] | None = lambda ctx: p.run(ctx)
+        self._fn: Callable[[_Context[I]], Result[I, R]] | None = lambda ctx: p.run(ctx)
 
-    def run(self, ctx: Context[I]) -> Result[I, R]:
+    def run(self, ctx: _Context[I]) -> Result[I, R]:
         """
         Execute the parser on the given context.
 
         Args:
-            ctx (Context[I]): The parsing context.
+            ctx (_Context[I]): The parsing context.
 
         Returns:
             Result[I, R]: The parse result.
@@ -208,6 +212,9 @@ class Parser[I, R]:
         """
         return self.map(fn)
 
+    def __invert__(self):
+        return self.absent()
+
     @classmethod
     def okay(cls, value: R) -> 'Parser[I, R]':
         """
@@ -225,18 +232,18 @@ class Parser[I, R]:
         return cls(lambda ctx: Result[I, R].okay(ctx, value, 0))
 
     @classmethod
-    def fail(cls, error: ParseErr) -> 'Parser[I, R]':
+    def fail(cls, error: _ParseErr) -> 'Parser[I, R]':
         """
         Creates a parser that always fails with the specified error, consuming no input.
 
         Args:
-            error (ParseErr): Error to return.
+            error (_ParseErr): Error to return.
 
         Returns:
             Parser[I, R]: Parser that always fails.
 
         Example:
-            >>> Parser.fail(ParseErr(...))
+            >>> Parser.fail(_ParseErr(...))
         """
         return cls(lambda ctx: Result[I, R].fail(ctx, error, 0))
 
@@ -259,7 +266,7 @@ class Parser[I, R]:
         """
 
         @Parser
-        def parse(ctx: Context[I]) -> Result[I, S]:
+        def parse(ctx: _Context[I]) -> Result[I, S]:
             r1 = self.run(ctx)
             match r1.outcome:
                 case Okay(value=v):
@@ -290,7 +297,7 @@ class Parser[I, R]:
         """
 
         @Parser
-        def parse(ctx: Context[I]) -> Result[I, S]:
+        def parse(ctx: _Context[I]) -> Result[I, S]:
             r = self.run(ctx)
             match r.outcome:
                 case Okay(value=v):
@@ -339,7 +346,7 @@ class Parser[I, R]:
         """
 
         @Parser
-        def parse(ctx: Context[I]) -> Result[I, R]:
+        def parse(ctx: _Context[I]) -> Result[I, R]:
             r1 = self.run(ctx)
             if isinstance(r1.outcome, Okay):
                 return r1
@@ -347,7 +354,7 @@ class Parser[I, R]:
             r2 = p.run(ctx)
             if isinstance(r2.outcome, Okay):
                 return r2
-            alt_err = AlterError([r1.outcome.error, r2.outcome.error])
+            alt_err = _AlterError([r1.outcome.error, r2.outcome.error])
             return Result[I, R].fail(r2.context, alt_err.join(), r2.consumed)
 
         return parse
@@ -372,14 +379,14 @@ class Parser[I, R]:
         """
 
         @Parser
-        def parse(ctx: Context[I]) -> Result[I, R]:
+        def parse(ctx: _Context[I]) -> Result[I, R]:
             r1 = self.run(ctx)
             if r1.consumed > 0 or isinstance(r1.outcome, Okay):
                 return r1
             r2 = p.run(r1.context)
             if isinstance(r2.outcome, Okay):
                 return r2
-            alt_err = AlterError([r1.outcome.error, r2.outcome.error])
+            alt_err = _AlterError([r1.outcome.error, r2.outcome.error])
             return Result[I, R].fail(r2.context, alt_err.join(), r2.consumed)
 
         return parse
@@ -592,6 +599,19 @@ class Parser[I, R]:
         """
         return self.ltrim(ignore).rtrim(ignore)
 
+    def absent(self) -> 'Parser[I, None]':
+        @Parser
+        def parse(ctx: _Context[I]) -> Result[I, None]:
+            r = self.run(ctx)
+            ctx = r.context.backtrack(r.consumed, ctx.state) if r.consumed else r.context
+            match r.outcome:
+                case Okay(value=v):
+                    return Result[I, None].fail(ctx, _UnExpected(repr(v), ctx.state.format()), 0)
+                case Fail():
+                    return Result[I, None].okay(ctx, None, 0)
+
+        return parse
+
     def sep_by(self, sep: 'Parser[I, Any]') -> 'Parser[I, list[R]]':
         """
         Separated-by combinator.
@@ -688,13 +708,15 @@ class Parser[I, R]:
         """
 
         @Parser
-        def parse(ctx: Context[I]) -> Result[I, R]:
+        def parse(ctx: _Context[I]) -> Result[I, R]:
             r = self.run(ctx)
             if isinstance(r.outcome, Fail):
                 return r
             if fn(r.outcome.value):
                 return r
-            return Result[I, R].fail(r.context, UnExpected(repr(r.outcome.value), r.context.state.format()), r.consumed)
+            return Result[I, R].fail(
+                r.context, _UnExpected(repr(r.outcome.value), r.context.state.format()), r.consumed
+            )
 
         return parse
 
@@ -705,7 +727,7 @@ class Parser[I, R]:
         Parses and succeeds only if the result equals the specified value.
 
         Args:
-            value (R): Expected value.
+            value (R): _Expected value.
 
         Returns:
             Parser[I, R]: Parser filtered by equality.
@@ -894,7 +916,7 @@ class Parser[I, R]:
         Assigns a human-readable label to the parser for diagnostic messages on failure.
 
         Args:
-            expected (str): Expected description.
+            expected (str): _Expected description.
 
         Returns:
             Parser[I, R]: Labeled parser.
@@ -905,27 +927,32 @@ class Parser[I, R]:
         """
 
         @Parser
-        def parse(ctx: Context[I]) -> Result[I, R]:
+        def parse(ctx: _Context[I]) -> Result[I, R]:
             ret = self.run(ctx)
             if isinstance(ret.outcome, Okay):
                 return ret
-            return Result[I, R].fail(ret.context, Expected(expected, [ret.outcome.error]), ret.consumed)
+            return Result[I, R].fail(ret.context, _Expected(expected, [ret.outcome.error]), ret.consumed)
 
         return parse
 
 
 @Parser
-def item[I](ctx: Context[I]) -> Result[I, I]:
+def item[I](ctx: _Context[I]) -> Result[I, I]:
     if ctx.stream.eos():
-        return Result[I, I].fail(ctx, EOSError(ctx.state.format()), 0)
-    return Result[I, I].okay(ctx.update(ctx.stream.peek().pop()), ctx.stream.read().pop(), 1)
+        return Result[I, I].fail(ctx, _EOSError(ctx.state.format()), 0)
+    v = ctx.stream.read().pop()
+    return Result[I, I].okay(ctx.update(v), v, 1)
 
 
 @Parser
-def look[I](ctx: Context[I]) -> Result[I, I]:
+def look[I](ctx: _Context[I]) -> Result[I, I]:
     if ctx.stream.eos():
-        return Result[I, I].fail(ctx, EOSError(ctx.state.format()), 0)
-    return Result[I, I].okay(ctx, ctx.stream.peek().pop(), 0)
+        return Result[I, I].fail(ctx, _EOSError(ctx.state.format()), 0)
+    v = ctx.stream.peek().pop()
+    return Result[I, I].okay(ctx, v, 0)
+
+
+eos = item.absent()
 
 
 def tokens[I](values: Iterable[I]) -> Parser[I, list[I]]:

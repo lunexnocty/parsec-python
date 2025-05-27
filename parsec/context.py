@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Final
 
 
 class IState[I](ABC):
@@ -49,21 +48,3 @@ class Context[I]:
 
     def update(self, value: I):
         return Context(self.stream, self.state.update(value))
-
-
-class EOSType(str):
-    __value__ = None
-
-    def __new__(cls):
-        if cls.__value__ is None:
-            cls.__value__ = super().__new__(cls, 'EOS')
-        return cls.__value__
-
-    def __eq__(self, value: object):
-        return self is value
-
-    def __hash__(self):
-        return hash(('EOSType', 'EOS'))
-
-
-EOS: Final[EOSType] = EOSType()

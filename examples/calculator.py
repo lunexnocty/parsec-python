@@ -5,7 +5,7 @@ from typing import Literal
 
 from parsec import Parser, item
 from parsec import combinator as C
-from parsec.text.basic import blank, char, l_round, number, r_round
+from parsec.text import lex
 from parsec.utils import curry
 
 """
@@ -64,12 +64,11 @@ def calc(op: str):
 
 
 expr = Parser[str, int | float]()
-num = number << C.trim(blank)
-factor = expr << C.between(l_round)(r_round) | num
-mul_or_div = char('*') | char('/')
-mul_or_div_op = (mul_or_div << C.trim(blank)) @ calc
+factor = expr << C.between(lex.l_round)(lex.r_round) | lex.number
+mul_or_div = lex.char('*') | lex.char('/')
+mul_or_div_op = mul_or_div @ calc
 mul_or_div_expr = factor << C.chainl1(mul_or_div_op)
 add_or_sub = item << C.range('+-')
-add_or_sub_op = (add_or_sub << C.trim(blank)) @ calc
+add_or_sub_op = add_or_sub @ calc
 add_or_sub_expr = mul_or_div_expr << C.chainl1(add_or_sub_op)
 expr.define(add_or_sub_expr)

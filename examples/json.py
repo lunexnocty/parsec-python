@@ -2,17 +2,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from parsec import Parser
-from parsec.text.lexeme import (
-    lex_colon,
-    lex_comma,
-    lex_l_bracket,
-    lex_l_curly,
-    lex_literal,
-    lex_number,
-    lex_r_bracket,
-    lex_r_curly,
-    lex_string,
-)
+from parsec.text import lex
 
 
 class JsonValue: ...
@@ -59,16 +49,16 @@ class JsonNull:
 """
 
 jsonValue = Parser[str, JsonValue]()
-jsonNull = lex_literal('null').map(lambda _: JsonNull())
-jsonBool = lex_literal('true').map(lambda _: JsonBool(True)) | lex_literal('false').map(lambda _: JsonBool(False))
-jsonNumber = lex_number.map(JsonNumber)
-jsonString = lex_string.map(JsonString)
-jsonArray = jsonValue.sep_by(lex_comma).default([]).between(lex_l_bracket, lex_r_bracket).map(JsonArray)
+jsonNull = lex.literal('null').map(lambda _: JsonNull())
+jsonBool = lex.literal('true').map(lambda _: JsonBool(True)) | lex.literal('false').map(lambda _: JsonBool(False))
+jsonNumber = lex.number.map(JsonNumber)
+jsonString = lex.string.map(JsonString)
+jsonArray = jsonValue.sep_by(lex.comma).default([]).between(lex.l_bracket, lex.r_bracket).map(JsonArray)
 jsonObject = (
-    (lex_string.suffix(lex_colon) & jsonValue)
-    .sep_by(lex_comma)
+    (lex.string.suffix(lex.colon) & jsonValue)
+    .sep_by(lex.comma)
     .default([])
-    .between(lex_l_curly, lex_r_curly)
+    .between(lex.l_curly, lex.r_curly)
     .map(lambda v: JsonObject(dict(v)))
 )
 jsonValue.define((jsonNull | jsonBool | jsonNumber | jsonString | jsonArray | jsonObject).as_type(JsonValue))

@@ -1,4 +1,6 @@
-<h1 align="center"> Parsec <a href="https://deepwiki.com/lunexnocty/parsec-python"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a></h1>
+<img src="assets/logo_v1.png" width="240" height="240" style="display: block; margin: 0 auto;"/>
+<h1 align="center">
+Parsec <a href="https://deepwiki.com/lunexnocty/parsec-python"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a></h1>
 <p  align="center">
   <em>A Monadic Parser Combinator for Python.</em>
 </p>
@@ -33,10 +35,21 @@ Unlike traditional parser generation tools (like Lark, PLY), Parsec allows you t
 ### Requirements
 For full type support, Python 3.13+ is required.
 ### Install from source code
+Install from source code:
 ```bash
 git clone https://github.com/lunexnocty/parsec-python.git
 cd parsec-python
-uv install .
+pip install .
+```
+
+Install from `pypi`:
+```bash
+pip install parsec-python
+```
+
+If you use `uv`:
+```bash
+uv add parsec-python
 ```
 
 ## Quick Start
@@ -67,29 +80,28 @@ num            := { number }
 Leveraging these features, you can build a fully functional arithmetic calculator with ease:
 
 ```python
-from parsec import combinator as C
-from parsec import text as T
+from parsec import Parser, item, text
+from parsec.text import lex
 from parsec.utils import curry
 
 def calc(op: str):
     @curry
     def _(x: int | float, y: int | float):
-        return {"+": x + y, "-": x - y, "*": x * y, "/": x / y}[op]
+        return {'+': x + y, '-': x - y, '*': x * y, '/': x / y}[op]
     return _
 
-expr = T.Parser[str, int | float]()
-num = T.number << C.trim(T.blank)
-factor = expr << C.between(T.open_round)(T.close_round) | num
-mul_or_div = T.char("*") | T.char("/")  # operator `|`
-mul_or_div_op = (mul_or_div << C.trim(T.blank)) @ calc  #  priority of `@` is higher than `<<`
-mul_or_div_expr = factor << C.chainl1(mul_or_div_op)
-add_or_sub = T.item << C.range("+-")  # use `range` combinator
-add_or_sub_op = (add_or_sub << C.trim(T.blank)) @ calc
-add_or_sub_expr = mul_or_div_expr << C.chainl1(add_or_sub_op)
-expr.define(add_or_sub_expr)  # Lazy definition
+expr = Parser[str, int | float]()
+factor = expr.between(lex.l_round, lex.r_round) | lex.number
+mul_or_div = lex.char('*') | lex.char('/')  # operator `|`
+mul_or_div_op = mul_or_div @ calc  # operator `@`
+mul_or_div_expr = factor.chainl1(mul_or_div_op)  # left associativity
+add_or_sub = item.range('+-') << lex.lexeme(text.blank)  # `range` combinator
+add_or_sub_op = add_or_sub @ calc
+add_or_sub_expr = mul_or_div_expr.chainl1(add_or_sub_op)
+expr.define(add_or_sub_expr)  # lazy definition
 
-src = "(1. + .2e-1) * 100 - 1 / 2.5 "
-assert T.parse(expr, src) == eval(src)  # True
+src = '(1. + .2e-1) * 100 - 1 / 2.5 '
+assert text.parse(expr, src) == eval(src)  # True
 ```
 
 The `parsec.combinator.chainl1` combinator handles left-associative chaining of operations, parsing one or more occurrences of a parser `p` separated by an operator parser, and combining results in a left-associative manner.

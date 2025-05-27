@@ -1,27 +1,26 @@
-from datetime import date as Date
-from datetime import datetime as Datetime
-from datetime import time as Time
-from functools import partial
-from typing import Any, Callable, cast
+from datetime import date as _Date
+from datetime import datetime as _Datetime
+from datetime import time as _Time
+from functools import partial as _partial
+from typing import cast
 
-from parsec.core import Parser
+from parsec.core import Parser as _Parser
 from parsec.core import item as _item
 from parsec.core import tokens as _tokens
 
 _s_join = ''.join
 
-char = cast(Parser[str, str], _item).eq
+char = cast(_Parser[str, str], _item).eq
 
 
-def literal(text: str) -> Parser[str, str]:
+def literal(text: str) -> _Parser[str, str]:
     return _tokens(text).map(_s_join)
 
 
-def _digit_n(n: int) -> Parser[str, str]:
+def _digit_n(n: int) -> _Parser[str, str]:
     return digit.repeat(n).map(_s_join)
 
 
-print(type(char))
 dot = char('.')
 comma = char(',')
 semicolon = char(';')
@@ -57,34 +56,27 @@ decinteger = (_num_sign & _digits1).map(_s_join)
 bininteger = (_num_sign & _bindigit1.prefix(char('0') & _item.range('bB'))).map(_s_join)
 octinteger = (_num_sign & _octdigit1.prefix(char('0') & _item.range('oO'))).map(_s_join)
 hexinteger = (_num_sign & _hexdigit1.prefix(char('0') & _item.range('xX'))).map(_s_join)
-integer: Parser[str, int] = (
-    hexinteger.map(partial(int, base=16))
-    | octinteger.map(partial(int, base=8))
-    | bininteger.map(partial(int, base=2))
-    | decinteger.map(partial(int, base=10))
+integer: _Parser[str, int] = (
+    hexinteger.map(_partial(int, base=16))
+    | octinteger.map(_partial(int, base=8))
+    | bininteger.map(_partial(int, base=2))
+    | decinteger.map(_partial(int, base=10))
 ).label('integer')
 
 _exponent = (_item.range('eE') & decinteger).map(_s_join)
 _dotment = (dot & _digits & _exponent.default('')).map(_s_join)
 _digit_float = (_num_sign & _digits1 & (_dotment | _exponent)).map(_s_join)
 _dot_float = (_num_sign & dot & _digits1 & _exponent.default('')).map(_s_join)
-floatnumber: Parser[str, float] = (_dot_float | _digit_float).map(float).label('float number')
-number: Parser[str, float | int] = (floatnumber | integer).label('number')
+floatnumber: _Parser[str, float] = (_dot_float | _digit_float).map(float).label('float number')
+number: _Parser[str, float | int] = (floatnumber | integer).label('number')
 
 blanks = blank.many().map(_s_join)
 identifier = ((alpha | underline) & (alnum | underline).many().map(_s_join)).map(_s_join).label('identifier')
-date: Parser[str, Date] = (
-    (_digit_n(4) & hyphen & _digit_n(2) & hyphen & _digit_n(2)).map(_s_join).map(Date.fromisoformat)
+date: _Parser[str, _Date] = (
+    (_digit_n(4) & hyphen & _digit_n(2) & hyphen & _digit_n(2)).map(_s_join).map(_Date.fromisoformat)
 ).label('date')
-time: Parser[str, Time] = (
-    (_digit_n(2) & colon & _digit_n(2) & colon & _digit_n(2)).map(_s_join).map(Time.fromisoformat)
+time: _Parser[str, _Time] = (
+    (_digit_n(2) & colon & _digit_n(2) & colon & _digit_n(2)).map(_s_join).map(_Time.fromisoformat)
 ).label('time')
-datetime: Parser[str, Datetime] = (date.suffix(char(' ')) & time).map(lambda dt: Datetime.combine(dt[0], dt[1]))
+datetime: _Parser[str, _Datetime] = (date.suffix(char(' ')) & time).map(lambda dt: _Datetime.combine(dt[0], dt[1]))
 string = _item.neq('"').many().map(_s_join).between(quotation, quotation)
-
-
-def lexeme[R](_lex: Parser[str, Any] = blank) -> Callable[[Parser[str, R]], Parser[str, R]]:
-    def _(p: Parser[str, R]) -> Parser[str, R]:
-        return p.ltrim(_lex)
-
-    return _

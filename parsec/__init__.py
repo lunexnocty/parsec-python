@@ -1,8 +1,5 @@
 from parsec import combinator, text
+from parsec.context import Context, IState, IStream
 from parsec.core import Parser, item, tokens
-from parsec.text.context import parse as _parse
 
-parse_text = _parse
-
-
-__all__ = ['combinator', 'item', 'text', 'tokens', 'Parser', 'parse_text']
+__all__ = ['combinator', 'text', 'Context', 'IState', 'IStream', 'Parser', 'item', 'tokens']

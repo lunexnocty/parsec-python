@@ -1,6 +1,6 @@
 [project]
 name = "parsec-python"
-version = "0.1.0"
+version = "0.1.1"
 description = "A Monadic Parser Combinator for Python."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -22,26 +22,30 @@ classifiers = [
 Homepage = "https://github.com/lunexnocty/parsec-python"
 Issues = "https://github.com/lunexnocty/parsec-python/issues"
 
-[project.optional-dependencies]
-lint = [
-    "ruff",
-    "pyright>=1.1.400",
-]
-test = []
-dev = [
-    "twine>=6.1.0",
-    "build>=1.2.2.post1",
-]
 
 [tool.setuptools_scm]
-write_to = "parsec/__version__.py"
+write_to = "VERSION"
 
 [tool.setuptools.packages]
-find = { where = ["parsec"], include = ["parsec*"], exclude = ["tests*", "examples*"] }
+find = { where = ["."], include = ["parsec", "parsec.*"], exclude = ["tests.*", "examples.*"] }
 
 [tool.ruff.format]
 quote-style = "single"
 
+[[tool.uv.index]]
+url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+default = true
+
+[dependency-groups]
+build = [
+    "build>=1.2.2.post1",
+    "twine>=6.1.0",
+]
+lint = [
+    "pyright>=1.1.400",
+    "ruff>=0.11.6",
+]
+
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
