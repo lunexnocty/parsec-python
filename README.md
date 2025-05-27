@@ -1,4 +1,6 @@
-<img src="assets/logo_v1.png" width="240" height="240" style="display: block; margin: 0 auto;"/>
+<p align="center">
+<img src="assets/logo_v1.png" width="240" height="240"/>
+</p>
 <h1 align="center">
 Parsec <a href="https://deepwiki.com/lunexnocty/parsec-python"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a></h1>
 <p  align="center">
@@ -77,7 +79,7 @@ factor         := '(' <expr> ')' | <num>
 num            := { number }
 ```
 
-Leveraging these features, you can build a fully functional arithmetic calculator with ease:
+Based on the BNF description above, we can easily build a parser to analyze the language defined by that syntax.
 
 ```python
 from parsec import Parser, item, text

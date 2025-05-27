@@ -6,9 +6,6 @@ readme = "README.md"
 requires-python = ">=3.13"
 license = "LGPL-2.1"
 license-files = ["LICEN[CS]E*"]
-authors = [
-    { name = "luminox", email = "lunex_nocty@qq.com" }
-]
 dependencies = []
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -22,19 +19,20 @@ classifiers = [
 Homepage = "https://github.com/lunexnocty/parsec-python"
 Issues = "https://github.com/lunexnocty/parsec-python/issues"
 
+[[project.authors]]
+name = "luminox"
+email = "lunex_nocty@qq.com"
 
 [tool.setuptools_scm]
 write_to = "VERSION"
 
-[tool.setuptools.packages]
-find = { where = ["."], include = ["parsec", "parsec.*"], exclude = ["tests.*", "examples.*"] }
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["parsec", "parsec.*"]
+exclude = ["tests.*", "examples.*"]
 
 [tool.ruff.format]
 quote-style = "single"
-
-[[tool.uv.index]]
-url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
-default = true
 
 [dependency-groups]
 build = [
