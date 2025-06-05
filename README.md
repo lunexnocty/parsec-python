@@ -1,5 +1,5 @@
 <p align="center">
-<img src="assets/logo_v1.png" width="240" height="240"/>
+<img src="assets/logo.png" width="240" height="240"/>
 </p>
 <h1 align="center">
 Parsec <a href="https://deepwiki.com/lunexnocty/parsec-python"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a></h1>

@@ -1,0 +1,66 @@
+name: Type Check
+
+on:
+    push:
+        tags:
+            - "*"
+
+    pull_request:
+        branches:
+            - main
+            - test
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_NAME: 'parsec-python'
+
+jobs:
+    typecheck:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install uv
+              uses: astral-sh/setup-uv@v6.0.0
+              with:
+                version: latest
+                enable-cache: true
+                cache-dependency-glob: |
+                  pyproject.toml
+
+            - name: Cache Python dependencies
+              uses: actions/cache@v4
+              with:
+                path: |
+                  .uv
+                key: ${{ runner.os }}-python-${{ hashFiles('pyproject.toml') }}
+
+            - name: Install dependencies
+              run: uv pip install -e ".[dev]"
+              
+            - name: Run ruff check
+              run: |
+                uv run ruff check . --output-format=github
+              continue-on-error: true
+
+            - name: Run pyright
+              run: |
+                cat <<EOF > pyrightconfig.json
+{
+  "include": ["parsec", "tests", "examples"],
+  "exclude": ["build", "dist", "**/migrations/**"],
+  "reportUnusedImport": true,
+  "reportUnusedVariable": true,
+  "ignoreExternal": true
+}
+EOF
+                uv run pyright --outputjson
+              continue-on-error: true
+
+            - name: Run unit test
+              run: |
+                uv run python -m unittest discover -s tests

@@ -13,4 +13,5 @@ dist/
 VERSION
 .install.txt
 .python-version
-uv.lock
+*.lock
+pyrightconfig.json

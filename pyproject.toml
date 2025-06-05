@@ -1,11 +1,14 @@
+[build-system]
+requires = ["setuptools>=80.9.0", "wheel>=0.45.1"]
+
 [project]
 name = "parsec-python"
-version = "0.1.1"
+dynamic = ["version"]
 description = "A Monadic Parser Combinator for Python."
 readme = "README.md"
 requires-python = ">=3.13"
 license = "LGPL-2.1"
-license-files = ["LICEN[CS]E*"]
+license-files = ["LICENSE"]
 dependencies = []
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -28,22 +31,22 @@ write_to = "VERSION"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["parsec", "parsec.*"]
+include = ["parsec.*"]
 exclude = ["tests.*", "examples.*"]
-
-[tool.ruff.format]
-quote-style = "single"
 
 [dependency-groups]
 build = [
     "build>=1.2.2.post1",
     "twine>=6.1.0",
 ]
-lint = [
-    "pyright>=1.1.400",
-    "ruff>=0.11.6",
+dev = [
+    "pyright>=1.1.401",
+    "pytest>=8.4.0",
+    "ruff>=0.11.12",
 ]
 
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+indent-size = 4
+line-ending = "auto"
