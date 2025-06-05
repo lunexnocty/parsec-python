@@ -50,14 +50,15 @@ jobs:
             - name: Run pyright
               run: |
                 cat <<EOF > pyrightconfig.json
-{
-  "include": ["parsec", "tests", "examples"],
-  "exclude": ["build", "dist", "**/migrations/**"],
-  "reportUnusedImport": true,
-  "reportUnusedVariable": true,
-  "ignoreExternal": true
-}
-EOF
+                {
+                  "include": ["parsec", "tests", "examples"],
+                  "exclude": ["build", "dist", "**/migrations/**"],
+                  "reportUnusedImport": true,
+                  "reportUnusedVariable": true,
+                  "ignoreExternal": true
+                }
+                EOF
+
                 uv run pyright --outputjson
               continue-on-error: true
 
